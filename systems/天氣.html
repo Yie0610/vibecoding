@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Wanderer - 全球定位觀測站</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    <style>
+        :root {
+            --primary-color: #1a3a5c;
+            --accent-color: #00BFFF;
+            --white: #FFFFFF;
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', "Microsoft JhengHei", sans-serif;
+        }
+
+        #map {
+            height: 100vh;
+            width: 100vw;
+            background: #0a1628;
+        }
+
+        /* 導覽按鈕 */
+        .back-btn {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 9999;
+            text-decoration: none;
+            background-color: rgba(255, 255, 255, 0.9);
+            color: #007faf;
+            padding: 10px 15px;
+            border-radius: 50px;
+            font-weight: bold;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            border: 1px solid #007faf;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            background-color: #007faf;
+            color: white;
+        }
+
+        /* 登機證樣式 */
+        .ticket-container {
+            width: 260px;
+            background: var(--white);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.4s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .ticket-header {
+            padding: 12px;
+            background: var(--primary-color);
+            color: white;
+            text-align: center;
+            border-bottom: 2px solid var(--accent-color);
+        }
+
+        .city-name {
+            font-size: 1.1rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .card-wrapper {
+            padding: 15px;
+            text-align: center;
+        }
+
+        .temp-main {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #0984E3;
+            margin: 5px 0;
+        }
+
+        .outfit-box {
+            background: #f0f7ff;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            margin-top: 10px;
+            border-left: 5px solid var(--accent-color);
+            text-align: left;
+            color: #2d3436;
+        }
+
+        .advice-item {
+            margin-bottom: 4px;
+            display: flex;
+            align-items: flex-start;
+            gap: 5px;
+        }
+
+        .ticket-footer {
+            padding: 10px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border-top: 1px dashed #8faabf;
+            font-size: 0.75rem;
+            text-align: center;
+            color: #4a6a8a;
+            background: #f9f9f9;
+        }
+
+        .leaflet-popup-content-wrapper {
+            padding: 0;
+            background: none;
+            box-shadow: none;
+        }
+
+        .leaflet-popup-content {
+            margin: 0;
+            width: 260px !important;
+        }
+
+        .leaflet-control-geocoder {
+            border-radius: 20px !important;
+            border: 2px solid var(--accent-color) !important;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2) !important;
+        }
+    </style>
+</head>
+
+<body>
+    <a href="../index.html" class="back-btn">
+        <span>⬅️</span> 返回旅遊大廳
+    </a>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+    <script>
+        const API_KEY = '0a1fe0a564db4842820115815263004';
+
+        // 初始化地圖
+        const map = L.map('map').setView([25.033, 121.565], 4);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { 
+            attribution: 'Esri' 
+        }).addTo(map);
+
+        // 搜尋功能
+        const geocoder = L.Control.geocoder({
+            defaultMarkGeocode: false,
+            placeholder: "搜尋全球城市...",
+        })
+        .on('markgeocode', function (e) {
+            const latlng = e.geocode.center;
+            const displayName = e.geocode.name.split(',')[0];
+            map.flyTo(latlng, 10);
+            fetchWeatherByCoords(latlng.lat, latlng.lng, displayName);
+        })
+        .addTo(map);
+
+        // 點擊地圖抓取天氣
+        map.on('click', function (e) {
+            fetchWeatherByCoords(e.latlng.lat, e.latlng.lng, "選定位置");
+        });
+
+        // 核心 API 函式：抓取資料並生成貼心提醒
+        async function fetchWeatherByCoords(lat, lon, locationName) {
+            const url = `https://api.worldweatheronline.com/premium/v1/weather.ashx?key=${API_KEY}&q=${lat},${lon}&format=json&num_of_days=1&lang=zh_tw`;
+
+            try {
+                const response = await fetch(url);
+                const result = await response.json();
+
+                if (result.data.error) {
+                    alert("抱歉，該位置暫無氣象資料");
+                    return;
+                }
+
+                const current = result.data.current_condition[0];
+                const temp = parseInt(current.temp_C);
+                const humidity = parseInt(current.humidity);
+                const weatherDesc = current.lang_zh_tw ? current.lang_zh_tw[0].value : current.weatherDesc[0].value;
+                const weatherIcon = current.weatherIconUrl[0].value;
+
+                // --- 貼心提醒邏輯邏輯 ---
+                let adviceList = [];
+
+                // 1. 穿搭建議
+                if (temp >= 30) {
+                    adviceList.push("🥵 極端高溫！建議穿著透氣涼爽衣物，嚴防中暑。");
+                } else if (temp >= 25) {
+                    adviceList.push("👕 天氣炎熱，適合短袖輕便服裝。");
+                } else if (temp >= 18) {
+                    adviceList.push("🧥 氣溫舒適，長袖或加件薄外套即可。");
+                } else if (temp >= 12) {
+                    adviceList.push("🧣 轉涼了，請備妥夾克或風衣外套保暖。");
+                } else {
+                    adviceList.push("❄️ 寒冷刺骨！厚羽絨衣、圍巾、手套必備。");
+                }
+
+                // 2. 天氣狀況特殊提醒
+                if (weatherDesc.includes("雨") || weatherDesc.includes("陣雨")) {
+                    adviceList.push("☔ 目前有雨，出門記得帶傘，注意路面濕滑。");
+                }
+                
+                // 3. 環境與防曬提醒
+                if (humidity > 80) {
+                    adviceList.push("💧 環境潮濕，體感會比實際溫度更顯悶熱。");
+                }
+                if (temp > 27 && !weatherDesc.includes("雨")) {
+                    adviceList.push("🕶️ 陽光強烈，戶外活動記得擦防曬、戴墨鏡。");
+                }
+
+                const adviceHTML = adviceList.map(item => `<div class="advice-item"><span>•</span>${item}</div>`).join('');
+
+                const popupContent = `
+                    <div class="ticket-container">
+                        <div class="ticket-header">
+                            <div class="city-name">${locationName.toUpperCase()}</div>
+                        </div>
+                        <div class="card-wrapper">
+                            <img src="${weatherIcon}" width="60" style="filter: drop-shadow(2px 2px 5px rgba(0,0,0,0.1));">
+                            <div class="temp-main">${temp}°C</div>
+                            <div style="color:#4a6a8a; font-size:1rem; font-weight:500; margin-bottom:10px;">${weatherDesc}</div>
+                            
+                            <div class="outfit-box">
+                                <strong style="color:var(--primary-color); display:block; margin-bottom:5px;">💡 旅人指南：</strong>
+                                ${adviceHTML}
+                            </div>
+                        </div>
+                        <div class="ticket-footer">
+                            <div>體感溫度: ${current.FeelsLikeC}°C</div>
+                            <div>空氣濕度: ${current.humidity}%</div>
+                        </div>
+                    </div>
+                `;
+
+                L.popup()
+                    .setLatLng([lat, lon])
+                    .setContent(popupContent)
+                    .openOn(map);
+
+            } catch (error) {
+                console.error("無法取得天氣資料", error);
+            }
+        }
+
+        // 預設載入台北
+        fetchWeatherByCoords(25.033, 121.565, "Taipei");
+    </script>
+
+</body>
+
+</html>

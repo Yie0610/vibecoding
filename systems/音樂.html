@@ -1,0 +1,323 @@
+html id="globalwanderer1"
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Wanderer 城市音樂地圖</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background-image: url("https://source.unsplash.com/1600x900/?travel");
+            background-size: cover;
+            background-position: center;
+            color: white;
+            min-height: 100vh;
+            transition: 0.5s;
+        }
+
+        .overlay {
+            min-height: 100vh;
+            background: rgba(0, 40, 80, 0.65);
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .subtitle {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        input,
+        button,
+        select {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 20px;
+            margin: 5px;
+            font-size: 15px;
+        }
+
+        input {
+            width: 240px;
+        }
+
+        button {
+            background: #1e90ff;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #4aa3ff;
+        }
+
+        .map {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .city {
+            display: inline-block;
+            padding: 8px 15px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            margin: 5px;
+            cursor: pointer;
+        }
+
+        .city:hover {
+            background: rgba(255, 255, 255, 0.35);
+        }
+
+        #results {
+            max-width: 900px;
+            margin: auto;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(5px);
+            border-radius: 18px;
+            padding: 15px;
+            margin: 15px 0;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .card img {
+            width: 100px;
+            border-radius: 12px;
+        }
+
+        .info {
+            flex: 1;
+        }
+
+        audio {
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        .favorite-list {
+            max-width: 900px;
+            margin: 30px auto;
+            background: rgba(255, 255, 255, 0.12);
+            padding: 15px;
+            border-radius: 15px;
+        }
+
+        .favorite-list ul {
+            margin-top: 10px;
+            padding-left: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 在每個子檔案的 <body> 正下方貼入這段 -->
+    <div style="position: fixed; top: 10px; left: 10px; z-index: 9999;">
+        <a href="../index.html" style="
+        text-decoration: none; 
+        background-color: rgba(255, 255, 255, 0.9); 
+        color: #007faf; 
+        padding: 10px 15px; 
+        border-radius: 50px; 
+        font-weight: bold; 
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-family: sans-serif;
+        border: 1px solid #007faf;
+    ">
+            <span>⬅️</span> 返回旅遊大廳
+        </a>
+    </div>
+
+    <div class="overlay">
+
+        <header id="title">🌍 Global Wanderer</header>
+        <div class="subtitle" id="subtitle">
+            城市音樂地圖｜探索世界與音樂文化
+        </div>
+
+        <div class="controls">
+            <input id="cityInput" placeholder="輸入城市 Tokyo / Paris">
+            <button onclick="searchMusic()">搜尋</button>
+
+            <select onchange="changeLang(this.value)">
+                <option value="zh">中文</option>
+                <option value="en">English</option>
+            </select>
+        </div>
+
+        <div class="map">
+            <span class="city" onclick="quickSearch('Tokyo')">Tokyo</span>
+            <span class="city" onclick="quickSearch('Paris')">Paris</span>
+            <span class="city" onclick="quickSearch('Seoul')">Seoul</span>
+            <span class="city" onclick="quickSearch('New York')">New York</span>
+            <span class="city" onclick="quickSearch('London')">London</span>
+        </div>
+
+        <div id="results"></div>
+
+        <div class="favorite-list">
+            <h3>❤️ 收藏清單</h3>
+            <ul id="favoriteItems"></ul>
+        </div>
+
+    </div>
+
+    <script>
+        let currentSpeech = null;
+
+        /* 背景圖 */
+        function setBackground(city) {
+            document.body.style.backgroundImage =
+                `url("https://source.unsplash.com/1600x900/?${city},travel")`;
+        }
+
+        /* 搜尋音樂 */
+        function searchMusic() {
+            let city = document.getElementById("cityInput").value;
+            if (!city) return;
+
+            setBackground(city);
+
+            fetch(`https://itunes.apple.com/search?term=${city}&media=music&limit=5`)
+                .then(res => res.json())
+                .then(data => {
+                    let results = document.getElementById("results");
+                    results.innerHTML = "";
+
+                    data.results.forEach(song => {
+                        let type = classify(song.primaryGenreName);
+
+                        let div = document.createElement("div");
+                        div.className = "card";
+
+                        div.innerHTML = `
+                <img src="${song.artworkUrl100}">
+                <div class="info">
+                    <h3>${song.trackName}</h3>
+                    <p>${song.artistName}</p>
+                    <p>🎼 ${type}</p>
+
+                    <audio controls src="${song.previewUrl}"></audio><br>
+
+                    <button onclick="speakText('${song.trackName} by ${song.artistName}')">🔊 播報</button>
+                    <button onclick="pauseSpeech()">⏸️ 暫停</button>
+                    <button onclick="resumeSpeech()">▶️ 繼續</button>
+                    <button onclick="stopSpeech()">⏹️ 停止</button>
+                    <button onclick="saveFavorite('${song.trackName}')">❤️ 收藏</button>
+                </div>
+            `;
+                        results.appendChild(div);
+                    });
+                });
+        }
+
+        /* 點城市 */
+        function quickSearch(city) {
+            document.getElementById("cityInput").value = city;
+            searchMusic();
+        }
+
+        /* 分類 */
+        function classify(genre) {
+            if (
+                genre.includes("Pop") ||
+                genre.includes("Hip-Hop") ||
+                genre.includes("Dance")
+            ) {
+                return "流行音樂";
+            }
+            return "傳統 / 其他";
+        }
+
+        /* TTS */
+        function speakText(text) {
+            stopSpeech();
+
+            currentSpeech = new SpeechSynthesisUtterance(text);
+            currentSpeech.lang = "en-US";
+            speechSynthesis.speak(currentSpeech);
+        }
+
+        function pauseSpeech() {
+            speechSynthesis.pause();
+        }
+
+        function resumeSpeech() {
+            speechSynthesis.resume();
+        }
+
+        function stopSpeech() {
+            speechSynthesis.cancel();
+        }
+
+        /* 收藏 */
+        function saveFavorite(song) {
+            let favorites = JSON.parse(localStorage.getItem("favorites")) || [];
+
+            if (!favorites.includes(song)) {
+                favorites.push(song);
+                localStorage.setItem("favorites", JSON.stringify(favorites));
+            }
+
+            loadFavorites();
+        }
+
+        function loadFavorites() {
+            let favorites = JSON.parse(localStorage.getItem("favorites")) || [];
+            let list = document.getElementById("favoriteItems");
+            list.innerHTML = "";
+
+            favorites.forEach(item => {
+                let li = document.createElement("li");
+                li.textContent = item;
+                list.appendChild(li);
+            });
+        }
+
+        loadFavorites();
+
+        /* 語言切換 */
+        function changeLang(lang) {
+            if (lang === "en") {
+                document.getElementById("title").innerText = "🌍 Global Wanderer";
+                document.getElementById("subtitle").innerText =
+                    "City Music Map | Explore Global Music Culture";
+            } else {
+                document.getElementById("title").innerText = "🌍 Global Wanderer";
+                document.getElementById("subtitle").innerText =
+                    "城市音樂地圖｜探索世界與音樂文化";
+            }
+        }
+    </script>
+
+</body>
+
+</html>

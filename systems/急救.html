@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedMap Ultra v17 | 具備 API 備援的穩定版</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Noto+Sans+TC:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <style>
+        :root {
+            --primary: #00539C;
+            --hosp: #E53935;
+            --clnc: #1E88E5;
+            --phar: #FB8C00;
+            --bg: #F8F9FA;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+
+        body {
+            background: var(--bg);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Navbar */
+        .header {
+            height: 70px;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 25px;
+            z-index: 2000;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--primary);
+        }
+
+        .search-area {
+            flex: 0 1 500px;
+            display: flex;
+            background: #f1f3f4;
+            border-radius: 8px;
+            padding: 5px;
+        }
+
+        .search-area input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 8px 15px;
+            outline: none;
+            font-size: 1rem;
+        }
+
+        .search-area button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* Layout */
+        .main {
+            flex: 1;
+            display: flex;
+            position: relative;
+        }
+
+        #map {
+            flex: 1;
+            z-index: 1;
+        }
+
+        /* Panel */
+        .side-panel {
+            width: 420px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid #e0e0e0;
+            z-index: 1001;
+            box-shadow: -5px 0 20px rgba(0, 0, 0, 0.05);
+        }
+
+        .emg-header {
+            padding: 20px;
+            background: var(--primary);
+            color: white;
+        }
+
+        .emg-btns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-call {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: 0.3s;
+        }
+
+        .btn-call:hover {
+            background: white;
+            color: var(--primary);
+        }
+
+        /* Tabs & List */
+        .tabs {
+            display: flex;
+            background: #fafafa;
+            border-bottom: 1px solid #eee;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: bold;
+            color: #888;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+            background: white;
+        }
+
+        .list-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .card {
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #f0f0f0;
+            margin-bottom: 12px;
+            transition: 0.3s;
+            cursor: pointer;
+            background: white;
+        }
+
+        .card:hover {
+            border-color: var(--primary);
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .card-title {
+            font-weight: bold;
+            font-size: 1.05rem;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .card-info {
+            font-size: 0.85rem;
+            color: #777;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Loader */
+        #loader {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.95);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* 狀態條 */
+        #api-status {
+            font-size: 0.7rem;
+            color: #aaa;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 在每個子檔案的 <body> 正下方貼入這段 -->
+    <div style="position: fixed; top: 10px; left: 10px; z-index: 9999;">
+        <a href="../index.html" style="
+        text-decoration: none; 
+        background-color: rgba(255, 255, 255, 0.9); 
+        color: #007faf; 
+        padding: 10px 15px; 
+        border-radius: 50px; 
+        font-weight: bold; 
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-family: sans-serif;
+        border: 1px solid #007faf;
+    ">
+            <span>⬅️</span> 返回旅遊大廳
+        </a>
+    </div>
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <h3 style="margin-top:20px; color:var(--primary)">MedMap 系統初始化...</h3>
+        <p id="status-text" style="color:#666; font-size:0.9rem; margin-top:8px;">正在連接衛星定位...</p>
+        <p id="api-status"></p>
+    </div>
+
+    <header class="header">
+        <div class="brand">
+            <i class="fas fa-hand-holding-medical fa-2x"></i>
+            <span style="font-family:'Montserrat'; font-weight:800; font-size:1.5rem;">MEDMAP</span>
+        </div>
+        <div class="search-area">
+            <input type="text" id="search-input" placeholder="搜尋全球地點、醫院或藥局...">
+            <button onclick="manualSearch()">搜尋</button>
+        </div>
+        <div id="clock" style="font-weight:bold; font-family:monospace;">12:00:00</div>
+    </header>
+
+    <div class="main">
+        <div id="map"></div>
+
+        <aside class="side-panel">
+            <div class="emg-header">
+                <div id="location-name" style="font-size:0.8rem; opacity:0.8; margin-bottom:5px;">定位中...</div>
+                <h2 style="font-size:1.2rem;">當地緊急求助</h2>
+                <div class="emg-btns">
+                    <a id="p-link" href="#" class="btn-call"><i class="fas fa-police-box"></i> 警察 --</a>
+                    <a id="a-link" href="#" class="btn-call" style="background:#E53935"><i class="fas fa-ambulance"></i>
+                        救護 --</a>
+                </div>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('hospital', this)">醫院 <span id="c-h"></span></div>
+                <div class="tab" onclick="switchTab('clinic', this)">診所 <span id="c-c"></span></div>
+                <div class="tab" onclick="switchTab('pharmacy', this)">藥局 <span id="c-p"></span></div>
+            </div>
+
+            <div id="list-body" class="list-container">
+                <!-- Data here -->
+            </div>
+        </aside>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let map, markerGroup, userMarker;
+        let medicalData = [];
+        let currentCategory = 'hospital';
+
+        // --- API 節點列表 (備援機制) ---
+        const OVERPASS_NODES = [
+            "https://overpass-api.de/api/interpreter",          // 德國 (主節點)
+            "https://overpass.kumi.systems/api/interpreter",    // 法國 (備援 1)
+            "https://overpass.openstreetmap.ru/api/interpreter" // 俄羅斯 (備援 2)
+        ];
+
+        const COUNTRY_EMG = {
+            'TW': { p: '110', a: '119', n: '台灣' },
+            'US': { p: '911', a: '911', n: '美國' },
+            'JP': { p: '110', a: '119', n: '日本' },
+            'DEFAULT': { p: '112', a: '112', n: '國際預設' }
+        };
+
+        window.onload = () => {
+            initMap();
+            startApp();
+            setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleTimeString('zh-TW', { hour12: false }), 1000);
+        };
+
+        function initMap() {
+            map = L.map('map', { zoomControl: false }).setView([25.03, 121.56], 13);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
+            markerGroup = L.layerGroup().addTo(map);
+        }
+
+        async function startApp() {
+            updateStatus("正在取得您的位置...");
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                const { latitude: lat, longitude: lon } = pos.coords;
+                await processLocation(lat, lon);
+            }, () => {
+                alert("定位失敗，請嘗試手動搜尋");
+                hideLoader();
+            });
+        }
+
+        async function processLocation(lat, lon) {
+            showLoader();
+            map.flyTo([lat, lon], 15);
+            if (userMarker) map.removeLayer(userMarker);
+            userMarker = L.circleMarker([lat, lon], { radius: 10, color: '#fff', weight: 3, fillColor: '#00539C', fillOpacity: 1 }).addTo(map);
+
+            await Promise.all([
+                detectArea(lat, lon),
+                smartFetchMedical(lat, lon)
+            ]);
+            hideLoader();
+        }
+
+        // --- 核心：智慧型 API 抓取 (帶備援) ---
+        async function smartFetchMedical(lat, lon) {
+            const query = `[out:json][timeout:25];(node["amenity"~"hospital|clinic|pharmacy"](around:3000,${lat},${lon}););out body;`;
+            let success = false;
+
+            for (let i = 0; i < OVERPASS_NODES.length; i++) {
+                updateStatus(`正在從數據節點 ${i + 1} 獲取資源...`);
+                document.getElementById('api-status').innerText = `目前嘗試：${new URL(OVERPASS_NODES[i]).hostname}`;
+
+                try {
+                    const response = await fetch(OVERPASS_NODES[i], {
+                        method: 'POST',
+                        body: query,
+                        timeout: 10000
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        medicalData = data.elements;
+                        renderContent();
+                        success = true;
+                        break; // 成功後跳出循環
+                    }
+                } catch (e) {
+                    console.warn(`節點 ${i + 1} 失敗，嘗試下一個...`);
+                }
+            }
+
+            if (!success) {
+                alert("所有醫療數據伺服器目前繁忙，請稍候再試。");
+            }
+        }
+
+        async function detectArea(lat, lon) {
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`).then(r => r.json());
+                const cc = res.address.country_code.toUpperCase();
+                const info = COUNTRY_EMG[cc] || COUNTRY_EMG['DEFAULT'];
+                document.getElementById('location-name').innerText = `📍 ${info.n} | ${res.display_name.split(',')[0]}`;
+                document.getElementById('p-link').innerText = `警察 ${info.p}`;
+                document.getElementById('p-link').href = `tel:${info.p}`;
+                document.getElementById('a-link').innerText = `救護 ${info.a}`;
+                document.getElementById('a-link').href = `tel:${info.a}`;
+            } catch (e) { }
+        }
+
+        function renderContent() {
+            markerGroup.clearLayers();
+            const listBody = document.getElementById('list-body');
+            listBody.innerHTML = '';
+
+            const filtered = medicalData.filter(x => x.tags.amenity === currentCategory);
+            const colors = { hospital: '#E53935', clinic: '#1E88E5', pharmacy: '#FB8C00' };
+
+            // 更新計數
+            document.getElementById('c-h').innerText = `(${medicalData.filter(x => x.tags.amenity === 'hospital').length})`;
+            document.getElementById('c-c').innerText = `(${medicalData.filter(x => x.tags.amenity === 'clinic').length})`;
+            document.getElementById('c-p').innerText = `(${medicalData.filter(x => x.tags.amenity === 'pharmacy').length})`;
+
+            filtered.forEach(item => {
+                const name = item.tags.name || '未登錄設施';
+                const phone = item.tags.phone || '無電話資訊';
+
+                // Marker
+                const m = L.circleMarker([item.lat, item.lon], { radius: 8, color: '#fff', weight: 2, fillColor: colors[currentCategory], fillOpacity: 0.9 }).addTo(markerGroup);
+                m.bindPopup(`<b>${name}</b><br>${phone}`);
+
+                // Card
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <span class="card-title">${name}</span>
+                    <div class="card-info">
+                        <span><i class="fas fa-phone-alt"></i> ${phone}</span>
+                        <span style="color:var(--primary)">查看位置 ></span>
+                    </div>
+                `;
+                card.onclick = () => { map.flyTo([item.lat, item.lon], 17); m.openPopup(); };
+                listBody.appendChild(card);
+            });
+        }
+
+        async function manualSearch() {
+            const query = document.getElementById('search-input').value;
+            if (!query) return;
+            showLoader();
+            updateStatus(`正在搜尋「${query}」...`);
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`).then(r => r.json());
+                if (res.length > 0) {
+                    processLocation(parseFloat(res[0].lat), parseFloat(res[0].lon));
+                } else {
+                    alert("找不到該地點");
+                    hideLoader();
+                }
+            } catch (e) { hideLoader(); }
+        }
+
+        function switchTab(cat, el) {
+            currentCategory = cat;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            renderContent();
+        }
+
+        function updateStatus(t) { document.getElementById('status-text').innerText = t; }
+        function showLoader() { document.getElementById('loader').style.display = 'flex'; }
+        function hideLoader() { document.getElementById('loader').style.display = 'none'; }
+    </script>
+</body>
+
+</html>

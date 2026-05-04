@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer-when-downgrade">
+    <title>☀️ 全球日出日落觀測地圖 🌙</title>
+    
+    <!-- Google Maps API -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAXdepGjW-9JOAs3yErdDfy2nE4zUd3pXs&libraries=maps&v=beta"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@700;900&display=swap');
+
+        :root {
+            --dark-blue: #1A374D;       /* 深藍底色 */
+            --light-blue: #406882;      /* 中調藍 */
+            --accent-cyan: #B1D0E0;     /* 亮青色（文字用） */
+            --pure-white: #FFFFFF;      /* 純白文字 */
+            --bg-gray: #F5F5F5;
+            --cute-font: 'Noto Sans TC', sans-serif;
+        }
+
+        body {
+            font-family: var(--cute-font);
+            font-weight: 900; 
+            margin: 0;
+            background-color: var(--bg-gray);
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        header {
+            padding: 20px;
+            background: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            text-align: center;
+            z-index: 10;
+        }
+
+        h1 { 
+            margin: 0; 
+            font-size: 1.8rem;
+            color: var(--dark-blue); 
+            letter-spacing: 2px;
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* 左側資訊欄 - 改為深藍底 */
+        #info-panel {
+            width: 360px;
+            padding: 40px;
+            background: var(--dark-blue);
+            color: var(--pure-white);
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            box-shadow: 5px 0 20px rgba(0,0,0,0.2);
+            z-index: 5;
+            justify-content: center;
+        }
+
+        .data-card {
+            background: rgba(255, 255, 255, 0.1); /* 半透明白底 */
+            padding: 25px;
+            border-radius: 20px; 
+            border: 2px solid var(--accent-cyan);
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .data-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .time-label { 
+            font-size: 1.1rem; 
+            color: var(--accent-cyan); 
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .time-value { 
+            font-size: 3rem; 
+            color: var(--pure-white); 
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .coord-box {
+            font-size: 0.95rem;
+            background: var(--light-blue);
+            padding: 12px;
+            border-radius: 12px;
+            color: var(--accent-cyan);
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* 右側地圖 */
+        #map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map { height: 100%; width: 100%; }
+
+        @media (max-width: 800px) {
+            .main-container { flex-direction: column; }
+            #info-panel { 
+                width: auto; 
+                height: auto; 
+                order: 2; 
+                padding: 25px;
+            }
+            #map-container { height: 350px; order: 1; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 在每個子檔案的 <body> 正下方貼入這段 -->
+    <div style="position: fixed; top: 10px; left: 10px; z-index: 9999;">
+        <a href="../index.html" style="
+        text-decoration: none; 
+        background-color: rgba(255, 255, 255, 0.9); 
+        color: #007faf; 
+        padding: 10px 15px; 
+        border-radius: 50px; 
+        font-weight: bold; 
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-family: sans-serif;
+        border: 1px solid #007faf;
+    ">
+            <span>⬅️</span> 返回旅遊大廳
+        </a>
+    </div>
+
+<header>
+    <h1>✨ 日出日落地圖 ✨</h1>
+</header>
+
+<div class="main-container">
+    <div id="info-panel">
+        <div>
+            <div style="font-size: 1.1rem; margin-bottom: 12px; text-align: center; color: var(--pure-white);">📍 選取的位置：</div>
+            <div id="coord-text" class="coord-box">請在地圖上點選位置</div>
+        </div>
+
+        <div class="data-card">
+            <span class="time-label">🌅 日出時刻</span>
+            <div id="sunrise" class="time-value">--:--</div>
+        </div>
+
+        <div class="data-card">
+            <span class="time-label">🌇 日落時刻</span>
+            <div id="sunset" class="time-value">--:--</div>
+        </div>
+    </div>
+
+    <div id="map-container">
+        <div id="map"></div>
+    </div>
+</div>
+
+<script>
+    let map;
+    let marker;
+
+    async function initMap() {
+        const defaultPos = { lat: 25.0339, lng: 121.5644 }; 
+        
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: defaultPos,
+            zoom: 7,
+            mapId: "DEMO_MAP_ID",
+            clickableIcons: false
+        });
+
+        map.addListener("click", (e) => {
+            updateDisplay(e.latLng.lat(), e.latLng.lng());
+        });
+
+        updateDisplay(defaultPos.lat, defaultPos.lng);
+    }
+
+    function updateDisplay(lat, lng) {
+        if (marker) marker.setMap(null);
+        marker = new google.maps.Marker({
+            position: { lat, lng },
+            map: map,
+            animation: google.maps.Animation.DROP 
+        });
+
+        document.getElementById('coord-text').innerText = `${lat.toFixed(3)}°N , ${lng.toFixed(3)}°E`;
+
+        const times = calculateSun(lat, lng);
+        document.getElementById('sunrise').innerText = times.sunrise;
+        document.getElementById('sunset').innerText = times.sunset;
+    }
+
+    function calculateSun(lat, lng) {
+        const now = new Date();
+        const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+        const timezone = Math.round(lng / 15); 
+        
+        const zenith = 90.83; 
+        const D2R = Math.PI / 180;
+        const R2D = 180 / Math.PI;
+
+        const fraction = (2 * Math.PI / 365) * (dayOfYear - 1);
+        const decl = 0.006918 - 0.399912 * Math.cos(fraction) + 0.070257 * Math.sin(fraction);
+        
+        const haArg = (Math.cos(zenith * D2R) / (Math.cos(lat * D2R) * Math.cos(decl))) - (Math.tan(lat * D2R) * Math.tan(decl));
+        
+        if (haArg > 1 || haArg < -1) return { sunrise: "極晝/夜", sunset: "極晝/夜" };
+        
+        const ha = Math.acos(haArg) * R2D;
+        const sunriseUTC = 12 - (lng / 15) - (ha / 15);
+        const sunsetUTC = 12 - (lng / 15) + (ha / 15);
+
+        const format = (utc) => {
+            let local = (utc + timezone + 24) % 24;
+            let h = Math.floor(local);
+            let m = Math.floor((local - h) * 60);
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+        };
+
+        return { sunrise: format(sunriseUTC), sunset: format(sunsetUTC) };
+    }
+
+    window.onload = initMap;
+</script>
+
+</body>
+</html>

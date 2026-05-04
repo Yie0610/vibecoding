@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第三組期末專案 | 全球旅遊導覽網</title>
+    <style>
+        :root {
+            --trivago-blue: #007faf;
+            --trivago-orange: #f48f00;
+            --trivago-red: #c94a38;
+            --dark-bg: rgba(0, 0, 0, 0.6);
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: "Helvetica Neue", Helvetica, Arial, "Microsoft JhengHei", sans-serif;
+            overflow-x: hidden;
+        }
+
+        .hero-container {
+            position: relative;
+            min-height: 100vh;
+            background: linear-gradient(var(--dark-bg), var(--dark-bg)), 
+                        url('https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1920&q=80');
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            padding: 40px 0;
+        }
+
+        .project-header {
+            margin-bottom: 40px;
+        }
+
+        .project-header h2 {
+            font-size: 1.2rem;
+            color: var(--trivago-orange);
+            letter-spacing: 4px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .project-header h1 {
+            font-size: 3.5rem;
+            margin: 0;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        /* 按鈕網格佈局 */
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            width: 90%;
+            max-width: 1100px;
+        }
+
+        .nav-card {
+            background: white;
+            color: #333;
+            text-decoration: none;
+            padding: 25px 15px;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            border-bottom: 5px solid transparent;
+        }
+
+        .nav-card span {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        /* 功能標題樣式 */
+        .nav-card .title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        /* 組員名稱樣式：稍微縮小一點，顏色淺一點 */
+        .nav-card .member-name {
+            font-size: 0.9rem;
+            color: #777;
+            background: #f0f0f0;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+
+        .nav-card:hover {
+            transform: translateY(-10px);
+            background-color: var(--trivago-blue);
+            color: white;
+            border-bottom: 5px solid var(--trivago-orange);
+        }
+
+        .nav-card:hover .member-name {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        @media (max-width: 900px) {
+            .nav-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="hero-container">
+        <header class="project-header">
+            <h2>第三組期末專案報告</h2>
+            <h1>全球旅遊導覽網</h1>
+            <p>Explorer: World Attractions Illustrated</p>
+        </header>
+
+        <div class="nav-grid">
+            <!-- 替換下方的「組員姓名」為妳們組員的名字 -->
+            <a href="./systems/評分.html" class="nav-card">
+                <span>⭐</span>
+                <div class="title">景點評分</div>
+                <div class="member-name">旻偵</div>
+            </a>
+
+            <a href="./systems/美食.html" class="nav-card">
+                <span>🍴</span>
+                <div class="title">在地美食</div>
+                <div class="member-name">品儀</div>
+            </a>
+
+            <a href="./systems/天氣.html" class="nav-card">
+                <span>☀️</span>
+                <div class="title">即時天氣</div>
+                <div class="member-name">璇璇</div>
+            </a>
+
+            <a href="./systems/急救.html" class="nav-card">
+                <span>🚑</span>
+                <div class="title">醫療急救</div>
+                <div class="member-name">珊珊</div>
+            </a>
+
+            <a href="./systems/音樂.html" class="nav-card">
+                <span>🎵</span>
+                <div class="title">旅途音樂</div>
+                <div class="member-name">圓圓</div>
+            </a>
+
+            <a href="./systems/時差.html" class="nav-card">
+                <span>🕒</span>
+                <div class="title">世界時差</div>
+                <div class="member-name">蕎蕎</div>
+            </a>
+
+            <a href="./systems/匯率.html" class="nav-card">
+                <span>💰</span>
+                <div class="title">匯率換算</div>
+                <div class="member-name">觀觀</div>
+            </a>
+
+            <!-- 第八個佔位符，保持排版美觀 -->
+            <div class="nav-card" style="opacity: 0.6; cursor: default;">
+                <span>👤</span>
+                <div class="title">專案領導</div>
+                <div class="member-name">珊珊</div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
