@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>電路連線大挑戰 - Circuit Connect</title>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #00ffcc;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+            border: 4px solid #333;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.2);
+            background: #222;
+        }
+        .ui-panel {
+            margin-bottom: 10px;
+            text-align: center;
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        canvas { cursor: pointer; }
+        #overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        button {
+            padding: 10px 25px;
+            font-size: 1.2rem;
+            background: #00ffcc;
+            border: none;
+            color: #1a1a1a;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        button:hover { background: #fff; box-shadow: 0 0 15px #00ffcc; }
+        .hidden { display: none !important; }
+        #restart-btn {
+            padding: 8px 20px;
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ui-panel">
+        <div>時間: <span id="timer">120</span>s</div>
+        <div>得分: <span id="score">0</span></div>
+        <button id="restart-btn" class="hidden">重新開始</button>
+    </div>
+
+    <div id="game-container">
+        <canvas id="gameCanvas" width="500" height="500"></canvas>
+        <div id="overlay">
+            <h1 id="msg-title">電路連線</h1>
+            <p id="msg-desc">點擊旋轉拼圖，讓電流從左流向右</p>
+            <button id="start-btn">開始遊戲</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const timerEl = document.getElementById('timer');
+        const scoreEl = document.getElementById('score');
+        const overlay = document.getElementById('overlay');
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const msgTitle = document.getElementById('msg-title');
+
+        // 遊戲設定
+        const GRID_SIZE = 5;
+        const CELL_SIZE = canvas.width / GRID_SIZE;
+        let grid = [];
+        let score = 0;
+        let timeLeft = 120;
+        let gameActive = false;
+        let timerInterval;
+
+        // 音效產生器 (Web Audio API)
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(freq, type, duration) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        // 拼圖種類: 0: 直線, 1: L型, 2: T型
+        class Tile {
+            constructor(r, c) {
+                this.r = r;
+                this.c = c;
+                this.type = Math.floor(Math.random() * 3);
+                this.rotation = Math.floor(Math.random() * 4); // 0, 1, 2, 3 (90度)
+                this.powered = false;
+            }
+
+            // 取得當前旋轉後的出口方向 (0:上, 1:右, 2:下, 3:左)
+            getExits() {
+                let baseExits = [];
+                if (this.type === 0) baseExits = [1, 3];      // 直線
+                else if (this.type === 1) baseExits = [1, 2]; // L型
+                else if (this.type === 2) baseExits = [1, 2, 3]; // T型
+                
+                return baseExits.map(e => (e + this.rotation) % 4);
+            }
+
+            rotate() {
+                this.rotation = (this.rotation + 1) % 4;
+                playSound(440, 'square', 0.05);
+            }
+        }
+
+        function initLevel() {
+            grid = [];
+            for (let r = 0; r < GRID_SIZE; r++) {
+                grid[r] = [];
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    grid[r][c] = new Tile(r, c);
+                    // 最左列：L型，旋轉1（左下出口），形成豎直連通，不向右連接
+                    if (c === 0) {
+                        grid[r][c].type = 1;
+                        grid[r][c].rotation = 1;
+                    }
+                }
+            }
+            checkConnection();
+        }
+
+        function checkConnection() {
+            // 重置電力
+            grid.forEach(row => row.forEach(t => t.powered = false));
+
+            // 從左側入口開始 BFS (假設入口在第3列最左邊)
+            let queue = [];
+            for(let r=0; r<GRID_SIZE; r++) {
+                let tile = grid[r][0];
+                if (tile.getExits().includes(3)) { // 檢查是否有左出口連向電源
+                    queue.push(tile);
+                    tile.powered = true;
+                }
+            }
+
+            let head = 0;
+            while(head < queue.length) {
+                let curr = queue[head++];
+                let exits = curr.getExits();
+                
+                // 檢查四個鄰居
+                const dr = [-1, 0, 1, 0];
+                const dc = [0, 1, 0, -1];
+                const opposite = [2, 3, 0, 1];
+
+                exits.forEach(dir => {
+                    let nr = curr.r + dr[dir];
+                    let nc = curr.c + dc[dir];
+                    
+                    if (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE) {
+                        let nextTile = grid[nr][nc];
+                        if (!nextTile.powered && nextTile.getExits().includes(opposite[dir])) {
+                            nextTile.powered = true;
+                            queue.push(nextTile);
+                        }
+                    }
+                });
+            }
+
+            // 勝利條件：右側任何一個 Tile 有電力且有向右的出口
+            let win = false;
+            for(let r=0; r<GRID_SIZE; r++) {
+                if(grid[r][GRID_SIZE-1].powered && grid[r][GRID_SIZE-1].getExits().includes(1)) {
+                    win = true;
+                    break;
+                }
+            }
+
+            if (win && gameActive) {
+                score += 100;
+                scoreEl.innerText = score;
+                playSound(880, 'sine', 0.2);
+                setTimeout(initLevel, 300);
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 繪製背景裝飾 (電源與目標)
+            ctx.fillStyle = "#ffd700"; ctx.fillRect(0, 0, 5, canvas.height); // 左側電源
+            ctx.fillStyle = "#ff4d4d"; ctx.fillRect(canvas.width-5, 0, 5, canvas.height); // 右側目標
+
+            grid.forEach((row, r) => {
+                row.forEach((tile, c) => {
+                    const x = c * CELL_SIZE;
+                    const y = r * CELL_SIZE;
+                    const cx = x + CELL_SIZE / 2;
+                    const cy = y + CELL_SIZE / 2;
+                    const exits = tile.getExits();
+
+                    // 繪製格線
+                    ctx.strokeStyle = "#333";
+                    ctx.strokeRect(x, y, CELL_SIZE, CELL_SIZE);
+
+                    // 繪製電路
+                    ctx.lineWidth = 8;
+                    ctx.lineCap = "round";
+                    ctx.strokeStyle = tile.powered ? "#00ffcc" : "#444";
+                    if (tile.powered) {
+                        ctx.shadowBlur = 10;
+                        ctx.shadowColor = "#00ffcc";
+                    }
+
+                    exits.forEach(dir => {
+                        ctx.beginPath();
+                        ctx.moveTo(cx, cy);
+                        if (dir === 0) ctx.lineTo(cx, y);
+                        if (dir === 1) ctx.lineTo(x + CELL_SIZE, cy);
+                        if (dir === 2) ctx.lineTo(cx, y + CELL_SIZE);
+                        if (dir === 3) ctx.lineTo(x, cy);
+                        ctx.stroke();
+                    });
+
+                    // 中間節點
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+                    ctx.fillStyle = ctx.strokeStyle;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                });
+            });
+
+            requestAnimationFrame(draw);
+        }
+
+        canvas.addEventListener('click', (e) => {
+            if (!gameActive) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const c = Math.floor(x / CELL_SIZE);
+            const r = Math.floor(y / CELL_SIZE);
+            
+            if (grid[r] && grid[r][c]) {
+                grid[r][c].rotate();
+                checkConnection();
+            }
+        });
+
+        function startGame() {
+            score = 0;
+            timeLeft = 120;
+            scoreEl.innerText = score;
+            timerEl.innerText = timeLeft;
+            overlay.classList.add('hidden');
+            restartBtn.classList.remove('hidden');
+            gameActive = true;
+            initLevel();
+            
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerEl.innerText = timeLeft;
+                if (timeLeft <= 0) endGame();
+            }, 1000);
+
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function endGame() {
+            gameActive = false;
+            clearInterval(timerInterval);
+            msgTitle.innerText = "時間到！";
+            document.getElementById('msg-desc').innerText = `最終得分: ${score}`;
+            startBtn.innerText = "再玩一次";
+            restartBtn.classList.add('hidden');
+            overlay.classList.remove('hidden');
+            playSound(220, 'sawtooth', 0.5);
+        }
+
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', () => {
+            endGame();
+            startGame();
+        });
+        draw();
+    </script>
+</body>
+</html>

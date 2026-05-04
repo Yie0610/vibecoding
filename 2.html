@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>蔣萬安抓老鼠：國旗大挑戰</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f3ee;--surface:rgba(255,255,255,.78);--surface2:rgba(255,255,255,.92);
+  --text:#1c1a16;--muted:#6b665e;--faint:#b0aba3;
+  --primary:#0e6b63;--primary-light:rgba(14,107,99,.1);--primary-dark:#094e48;
+  --success:#2d7a3a;--success-bg:rgba(45,122,58,.1);
+  --error:#b42318;--error-bg:rgba(180,35,24,.08);
+  --gold:#d4920a;--gold-bg:rgba(212,146,10,.1);
+  --border:rgba(28,26,22,.1);
+  --shadow:0 12px 40px rgba(40,32,20,.1);
+  --radius:20px;--radius-sm:14px;
+  --font:'Inter','Noto Sans TC',sans-serif;
+}
+body{font-family:var(--font);color:var(--text);background:linear-gradient(170deg,#f8f6f0 0%,#eee8dc 50%,#e8e0d0 100%);min-height:100vh}
+.wrap{max-width:920px;margin:0 auto;padding:20px 16px 40px}
+
+.screen{display:none;animation:fadeIn .35s ease}
+.screen.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── RAT floating animation ── */
+.floatingRat{position:fixed;font-size:32px;opacity:.12;pointer-events:none;z-index:0;animation:drift linear infinite}
+@keyframes drift{0%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-30px) rotate(8deg)}100%{transform:translateY(0) rotate(0deg)}}
+
+/* ── START ── */
+.startWrap{text-align:center;padding:32px 0 20px;position:relative;z-index:1}
+.heroBanner{
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:28px;margin-bottom:20px;display:grid;
+  grid-template-columns:160px 1fr;gap:24px;align-items:center;text-align:left;
+}
+.heroImg{
+  width:160px;height:200px;border-radius:16px;overflow:hidden;
+  border:1px solid var(--border);background:#e0dbd2;
+  box-shadow:0 8px 20px rgba(0,0,0,.08);
+}
+.heroImg img{width:100%;height:100%;object-fit:cover;object-position:center top}
+.heroBody .badge{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--error-bg);color:var(--error);border:1px solid rgba(180,35,24,.15);
+  padding:6px 14px;border-radius:999px;font-weight:700;font-size:13px;margin-bottom:10px;
+}
+.heroBody h1{font-size:clamp(28px,4.5vw,44px);font-weight:900;letter-spacing:-.03em;line-height:1.12;margin-bottom:10px}
+.heroBody h1 .ratEmoji{font-style:normal}
+.heroBody p{color:var(--muted);font-size:15px;line-height:1.75;max-width:520px}
+
+.storyCard{
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:22px 24px;margin-bottom:20px;text-align:left;
+}
+.storyCard h3{font-size:18px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.storyCard p{color:var(--muted);font-size:14px;line-height:1.75}
+
+.rulesGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+.ruleCard{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px}
+.ruleCard .num{font-size:26px;font-weight:900;color:var(--primary);margin-bottom:4px}
+.ruleCard .rl{font-size:13px;color:var(--muted);line-height:1.6}
+
+.bigBtn{
+  display:inline-flex;align-items:center;gap:10px;
+  background:linear-gradient(135deg,var(--primary),#17a192);color:#fff;
+  border:none;border-radius:16px;padding:18px 48px;font-size:19px;font-weight:800;
+  cursor:pointer;box-shadow:0 14px 32px rgba(14,107,99,.3);
+  transition:transform .15s,box-shadow .15s;
+}
+.bigBtn:hover{transform:translateY(-2px);box-shadow:0 18px 40px rgba(14,107,99,.35)}
+.bigBtn:active{transform:translateY(1px)}
+
+/* ── GAME ── */
+.topBar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.topBar h2{font-size:20px;font-weight:800;display:flex;align-items:center;gap:8px}
+.hudPills{display:flex;gap:10px}
+.pill{background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:10px 16px;font-size:14px;font-weight:700;display:flex;align-items:center;gap:7px}
+.pill .pi{font-size:17px}
+.pill.danger{color:var(--error);border-color:rgba(180,35,24,.18);background:var(--error-bg)}
+
+.progTrack{height:6px;border-radius:99px;background:rgba(28,26,22,.06);margin-bottom:18px;overflow:hidden}
+.progFill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--primary),#1aab9c);transition:width .4s ease}
+
+.quizCard{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px;position:relative;overflow:hidden}
+.quizCard .ratCorner{position:absolute;font-size:64px;opacity:.08;bottom:-8px;right:-4px;transform:rotate(-18deg);pointer-events:none}
+
+.qLabel{font-size:14px;color:var(--muted);margin-bottom:10px;text-align:center}
+.flagWrap{display:flex;justify-content:center;align-items:center;gap:18px;margin-bottom:6px;flex-wrap:wrap}
+.flagBox{
+  width:210px;height:140px;border-radius:14px;overflow:hidden;
+  border:1px solid var(--border);background:#e8e4db;
+  box-shadow:0 8px 20px rgba(0,0,0,.08);
+}
+.flagBox img{width:100%;height:100%;object-fit:cover}
+.catcherBox{
+  width:82px;height:82px;border-radius:50%;overflow:hidden;
+  border:3px solid var(--primary);box-shadow:0 8px 20px rgba(14,107,99,.2);
+  background:#e0dbd2;
+}
+.catcherBox img{width:100%;height:100%;object-fit:cover;object-position:center top}
+.catcherLabel{font-size:12px;color:var(--muted);text-align:center;margin-top:4px}
+
+.flagCap{font-size:13px;color:var(--faint);margin:8px 0 18px;text-align:center}
+
+.optGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:540px;margin:0 auto}
+.optBtn{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  padding:15px 14px;font-size:16px;font-weight:600;cursor:pointer;
+  transition:transform .12s,background .12s,border-color .12s,box-shadow .12s;
+  text-align:center;line-height:1.4;position:relative;
+}
+.optBtn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.06);border-color:var(--primary)}
+.optBtn:active{transform:translateY(1px)}
+.optBtn.correct{background:var(--success-bg);border-color:var(--success);color:var(--success)}
+.optBtn.wrong{background:var(--error-bg);border-color:var(--error);color:var(--error)}
+.optBtn.reveal{background:var(--gold-bg);border-color:var(--gold);color:#8a6205}
+.optBtn:disabled{cursor:default;transform:none!important;box-shadow:none!important}
+
+/* rat catch animation on correct */
+.ratCaught{position:absolute;font-size:28px;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;animation:ratPoof .5s ease-out forwards;z-index:2}
+@keyframes ratPoof{0%{opacity:1;transform:translate(-50%,-50%) scale(1)}60%{opacity:1;transform:translate(-50%,-80%) scale(1.3) rotate(20deg)}100%{opacity:0;transform:translate(-50%,-120%) scale(.6)}}
+
+.factBox{
+  margin-top:16px;padding:14px 18px;border-radius:var(--radius-sm);
+  background:var(--primary-light);border:1px solid rgba(14,107,99,.12);
+  font-size:14px;line-height:1.7;color:var(--primary-dark);text-align:left;
+}
+
+/* score popup */
+.scorePop{
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-size:72px;font-weight:900;color:var(--success);
+  text-shadow:0 4px 12px rgba(45,122,58,.3);
+  pointer-events:none;z-index:99;
+  animation:popUp .6s ease-out forwards;
+}
+@keyframes popUp{0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}30%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}100%{opacity:0;transform:translate(-50%,-70%) scale(.9)}}
+
+/* ── END ── */
+.endWrap{text-align:center;padding:36px 0}
+.endCard{
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:32px 24px;max-width:560px;margin:0 auto;position:relative;overflow:hidden;
+}
+.endCard .bgRat{position:absolute;font-size:100px;opacity:.06;bottom:-16px;right:-12px;transform:rotate(-15deg);pointer-events:none}
+.endCard .trophy{font-size:52px;margin-bottom:10px}
+.endCard h3{font-size:30px;font-weight:900;margin-bottom:6px}
+.endCard .fs{font-size:60px;font-weight:900;color:var(--primary);margin:12px 0}
+.endCard .sum{color:var(--muted);font-size:15px;line-height:1.7;margin-bottom:20px;max-width:420px;margin-left:auto;margin-right:auto}
+.statsRow{display:flex;justify-content:center;gap:14px;margin-bottom:22px;flex-wrap:wrap}
+.es{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 20px;min-width:100px}
+.es .ev{font-size:22px;font-weight:800}
+.es .el{font-size:12px;color:var(--muted);margin-top:3px}
+
+.footer{margin-top:16px;text-align:center;font-size:12px;color:var(--faint);line-height:1.7}
+
+@media(max-width:640px){
+  .heroBanner{grid-template-columns:1fr;text-align:center}
+  .heroImg{width:120px;height:150px;margin:0 auto}
+  .rulesGrid,.optGrid{grid-template-columns:1fr}
+  .flagWrap{flex-direction:column}
+  .flagBox{width:180px;height:120px}
+}
+</style>
+</head>
+<body>
+
+<!-- floating rats bg -->
+<div id="bgRats" aria-hidden="true"></div>
+
+<div class="wrap">
+
+<!-- ══════ START ══════ -->
+<div class="screen active" id="scrStart">
+<div class="startWrap">
+  <div class="heroBanner">
+    <div class="heroImg">
+      <img src="https://assets.anntw.com/assets/images/000/077/004/big/%E5%9C%96%E8%AA%AA%EF%BC%9A%E5%8F%B0%E5%8C%97%E5%B8%82%E9%95%B7%E8%94%A3%E8%90%AC%E5%AE%894%E6%97%A5%E4%B8%96%E6%96%B0%E5%A4%A7%E5%AD%B8%E7%95%A2%E6%A5%AD%E5%85%B8%E7%A6%AE%EF%BC%8C%E9%9B%99%E6%89%8B%E6%AF%94%E6%84%9B%E5%BF%83%E5%90%91%E4%B8%96%E6%96%B0%E7%95%A2%E6%A5%AD%E7%94%9F%E9%80%81%E4%B8%8A%E7%A5%9D%E7%A6%8F%E3%80%82%EF%BC%88%E7%9B%B4%E6%92%AD%E6%88%AA%E5%9C%96%EF%BC%89.png?1685867810" alt="蔣萬安比讚" id="heroPortrait" referrerpolicy="no-referrer">
+    </div>
+    <div class="heroBody">
+      <div class="badge">🐀 台北鼠患特別企劃</div>
+      <h1>蔣萬安抓老鼠<br><span class="ratEmoji">🐭</span> 國旗大挑戰</h1>
+      <p>台北街頭老鼠猖獗，蔣萬安市長決定用「知識」來抓鼠！每答對一題國旗題目，就成功抓到一隻老鼠；答錯則老鼠逃跑。在 2 分鐘內盡量多抓幾隻吧！</p>
+    </div>
+  </div>
+
+  <div class="storyCard">
+    <h3>🗞️ 背景故事：台北鼠患</h3>
+    <p>2026 年台北市多處傳出鼠患，大安區巷弄、雙連市場周邊、師大與台大校園附近都有老鼠出沒的報導。有醫師指出密集都更工程可能驅使老鼠遷移至住宅區，市府也啟動跨局處清消與滅鼠行動。本遊戲以此為背景，結合世界國旗知識題，讓你在「抓老鼠」的趣味中學習各國國旗與地理知識。</p>
+  </div>
+
+  <div class="rulesGrid">
+    <div class="ruleCard"><div class="num">⏱ 2:00</div><div class="rl">倒數 2 分鐘，時間到自動結算。</div></div>
+    <div class="ruleCard"><div class="num">🐀 抓鼠</div><div class="rl">答對＝抓到老鼠（+1 分），答錯＝老鼠逃跑。</div></div>
+    <div class="ruleCard"><div class="num">📖 學習</div><div class="rl">每題答完都會顯示該國小知識，邊玩邊學。</div></div>
+  </div>
+
+  <button class="bigBtn" id="btnStart">🐀 開始抓老鼠！</button>
+</div>
+</div>
+
+<!-- ══════ GAME ══════ -->
+<div class="screen" id="scrGame">
+  <div class="topBar">
+    <h2>🐀 蔣萬安抓老鼠</h2>
+    <div class="hudPills">
+      <div class="pill" id="pillTime"><span class="pi">⏱</span><span id="hTime">02:00</span></div>
+      <div class="pill"><span class="pi">🐀</span>抓到 <span id="hScore">0</span> 隻</div>
+      <div class="pill"><span class="pi">📋</span>第 <span id="hQ">1</span> 題</div>
+    </div>
+  </div>
+  <div class="progTrack"><div class="progFill" id="progBar" style="width:100%"></div></div>
+
+  <div class="quizCard">
+    <div class="ratCorner">🐀</div>
+    <div class="qLabel">🐭 一隻老鼠叼著一面國旗跑過去了！請問這是哪國的國旗？</div>
+    <div class="flagWrap">
+      <div class="flagBox"><img id="flagImg" src="" alt="國旗"></div>
+      <div>
+        <div class="catcherBox"><img src="https://assets.anntw.com/assets/images/000/077/004/big/%E5%9C%96%E8%AA%AA%EF%BC%9A%E5%8F%B0%E5%8C%97%E5%B8%82%E9%95%B7%E8%94%A3%E8%90%AC%E5%AE%894%E6%97%A5%E4%B8%96%E6%96%B0%E5%A4%A7%E5%AD%B8%E7%95%A2%E6%A5%AD%E5%85%B8%E7%A6%AE%EF%BC%8C%E9%9B%99%E6%89%8B%E6%AF%94%E6%84%9B%E5%BF%83%E5%90%91%E4%B8%96%E6%96%B0%E7%95%A2%E6%A5%AD%E7%94%9F%E9%80%81%E4%B8%8A%E7%A5%9D%E7%A6%8F%E3%80%82%EF%BC%88%E7%9B%B4%E6%92%AD%E6%88%AA%E5%9C%96%EF%BC%89.png?1685867810" alt="蔣萬安" id="catcherImg" referrerpolicy="no-referrer"></div>
+        <div class="catcherLabel">蔣萬安<br>準備抓鼠中…</div>
+      </div>
+    </div>
+    <div class="flagCap" id="flagCap">辨認國旗，答對就能成功抓到這隻老鼠！</div>
+    <div class="optGrid" id="optGrid"></div>
+    <div id="factArea"></div>
+  </div>
+</div>
+
+<!-- ══════ END ══════ -->
+<div class="screen" id="scrEnd">
+<div class="endWrap">
+  <div class="endCard">
+    <div class="bgRat">🐀</div>
+    <div class="trophy" id="endEmoji">🏆</div>
+    <h3>抓鼠行動結束！</h3>
+    <div class="fs" id="finalScore">0 隻</div>
+    <div class="sum" id="endSum"></div>
+    <div class="statsRow">
+      <div class="es"><div class="ev" id="eOK">0</div><div class="el">🐀 抓到</div></div>
+      <div class="es"><div class="ev" id="eNO">0</div><div class="el">💨 逃跑</div></div>
+      <div class="es"><div class="ev" id="eTot">0</div><div class="el">📋 總題數</div></div>
+    </div>
+    <button class="bigBtn" id="btnAgain">🔄 再抓一輪！</button>
+  </div>
+</div>
+</div>
+
+<div class="footer">
+  本遊戲為趣味教育互動網頁，背景取材自 2026 年台北鼠患相關公開新聞報導。國旗圖片來源：flagcdn.com。
+</div>
+</div>
+
+<script>
+// ── background floating rats ──
+(function(){
+  const c=document.getElementById('bgRats');
+  const rats=['🐀','🐁','🐭'];
+  for(let i=0;i<10;i++){
+    const d=document.createElement('div');
+    d.className='floatingRat';
+    d.textContent=rats[i%3];
+    d.style.left=Math.random()*90+'vw';
+    d.style.top=Math.random()*90+'vh';
+    d.style.animationDuration=(4+Math.random()*5)+'s';
+    d.style.animationDelay=Math.random()*3+'s';
+    d.style.fontSize=(24+Math.random()*20)+'px';
+    c.appendChild(d);
+  }
+})();
+
+const FLAGS=[
+  {code:"JP",name:"日本",fact:"日本國旗的紅色圓形代表太陽，日語稱為「日之丸」，自 1870 年起正式使用。"},
+  {code:"KR",name:"韓國",fact:"韓國國旗稱為太極旗，中央的太極象徵宇宙陰陽平衡，四角的卦象出自《易經》。"},
+  {code:"TH",name:"泰國",fact:"泰國三色旗的藍色代表國王，紅色代表國家，白色代表宗教（佛教）。"},
+  {code:"IN",name:"印度",fact:"印度國旗中央的阿育王法輪有 24 根輻條，象徵每天 24 小時不斷進步。"},
+  {code:"VN",name:"越南",fact:"越南國旗的金色五角星代表工人、農民、士兵、知識分子與青年五大階層的團結。"},
+  {code:"ID",name:"印尼",fact:"印尼國旗紅白二色源自 13 世紀滿者伯夷帝國的旗幟，是世界上歷史最悠久的國旗設計之一。"},
+  {code:"PH",name:"菲律賓",fact:"菲律賓國旗若將紅色置於上方代表戰爭狀態，平時藍色在上，是全球少數會翻轉的國旗。"},
+  {code:"MY",name:"馬來西亞",fact:"馬來西亞國旗有 14 道紅白條紋，代表 13 個州與聯邦政府的團結。"},
+  {code:"SG",name:"新加坡",fact:"新加坡國旗的五顆星代表民主、和平、進步、公正與平等五大理念。"},
+  {code:"CN",name:"中國",fact:"中國國旗的大星代表中國共產黨，四顆小星代表工人、農民、知識分子和民族資產階級。"},
+  {code:"US",name:"美國",fact:"美國國旗的 50 顆星代表現今 50 個州，13 道條紋代表建國時的 13 個殖民地。"},
+  {code:"GB",name:"英國",fact:"英國國旗稱為「Union Jack」，由英格蘭、蘇格蘭和愛爾蘭三面旗幟疊合而成。"},
+  {code:"FR",name:"法國",fact:"法國三色旗的藍白紅三色象徵自由、平等、博愛，源自法國大革命時期。"},
+  {code:"DE",name:"德國",fact:"德國國旗的黑紅金三色源自 19 世紀反拿破崙戰爭中志願軍的制服顏色。"},
+  {code:"IT",name:"義大利",fact:"義大利三色旗的綠色代表國土、白色代表雪山、紅色代表鮮血，靈感來自法國三色旗。"},
+  {code:"ES",name:"西班牙",fact:"西班牙國旗上的國徽包含卡斯提亞、萊昂、亞拉岡、納瓦拉等歷史王國的紋章。"},
+  {code:"PT",name:"葡萄牙",fact:"葡萄牙國旗上的渾天儀象徵大航海時代的探險精神。"},
+  {code:"NL",name:"荷蘭",fact:"荷蘭國旗是世界上最早的三色旗之一，原本頂部是橙色，後改為紅色。"},
+  {code:"SE",name:"瑞典",fact:"瑞典國旗的藍底金十字設計可追溯到 16 世紀，象徵北歐基督教傳統。"},
+  {code:"NO",name:"挪威",fact:"挪威國旗結合了丹麥的紅白十字與瑞典的藍色，象徵其歷史上與兩國的關係。"},
+  {code:"DK",name:"丹麥",fact:"丹麥國旗據傳在 1219 年的戰役中從天而降，是世界上仍在使用的最古老國旗。"},
+  {code:"FI",name:"芬蘭",fact:"芬蘭國旗的藍色代表千湖之國的湖泊與天空，白色代表冬季的白雪。"},
+  {code:"CH",name:"瑞士",fact:"瑞士國旗和國際紅十字會旗幟互為反色：一個白底紅十字，一個紅底白十字。"},
+  {code:"PL",name:"波蘭",fact:"波蘭國旗的白色代表和平，紅色代表為自由奮鬥犧牲的鮮血。"},
+  {code:"GR",name:"希臘",fact:"希臘國旗的九道藍白條紋代表「自由或死亡」這句口號的九個音節。"},
+  {code:"TR",name:"土耳其",fact:"土耳其國旗的星月圖案源自鄂圖曼帝國，新月和星星是伊斯蘭世界的常見符號。"},
+  {code:"RU",name:"俄羅斯",fact:"俄羅斯三色旗由彼得大帝在 17 世紀引入，靈感來自荷蘭國旗。"},
+  {code:"UA",name:"烏克蘭",fact:"烏克蘭國旗的藍色代表天空，黃色代表麥田，象徵這片肥沃的農業大國。"},
+  {code:"BR",name:"巴西",fact:"巴西國旗上的 27 顆星代表 26 個州和聯邦區，排列模擬了 1889 年共和國成立時里約的夜空。"},
+  {code:"AR",name:"阿根廷",fact:"阿根廷國旗中央的「五月太陽」紀念 1810 年五月革命。"},
+  {code:"MX",name:"墨西哥",fact:"墨西哥國旗中央的老鷹叼蛇站在仙人掌上，來自阿茲特克人建城的傳說。"},
+  {code:"CA",name:"加拿大",fact:"加拿大國旗的楓葉有 11 個角，這個數字經風洞測試在風中最容易辨認。"},
+  {code:"AU",name:"澳大利亞",fact:"澳大利亞國旗上的南十字星座只有在南半球才能看到。"},
+  {code:"NZ",name:"紐西蘭",fact:"紐西蘭國旗上只有南十字座的四顆最亮星，用紅色五角星表示。"},
+  {code:"EG",name:"埃及",fact:"埃及國旗中央的金色鷹是「薩拉丁之鷹」，紀念 12 世紀抵抗十字軍的英雄。"},
+  {code:"ZA",name:"南非",fact:"南非國旗有六種顏色，是全球顏色最多的無紋章國旗，象徵種族和解。"},
+  {code:"NG",name:"奈及利亞",fact:"奈及利亞國旗的設計者是一名 23 歲的學生。"},
+  {code:"KE",name:"肯亞",fact:"肯亞國旗中央的馬賽盾牌與長矛象徵對自由與國家的捍衛。"},
+  {code:"SA",name:"沙烏地阿拉伯",fact:"沙烏地阿拉伯國旗上寫有伊斯蘭信仰宣言，因此永遠不會降半旗。"},
+  {code:"IL",name:"以色列",fact:"以色列國旗的大衛之星是猶太教的重要象徵，藍白二色源自猶太祈禱披巾。"},
+  {code:"IE",name:"愛爾蘭",fact:"愛爾蘭三色旗的綠色代表天主教徒，橙色代表新教徒，白色代表和平。"},
+  {code:"IS",name:"冰島",fact:"冰島國旗的藍色代表大西洋，白色代表冰雪，紅色代表火山的熔岩。"},
+  {code:"NP",name:"尼泊爾",fact:"尼泊爾是全世界唯一非矩形的國旗，由兩個三角形疊成，象徵喜馬拉雅山脈。"},
+  {code:"BT",name:"不丹",fact:"不丹國旗上的龍稱為「雷龍」，爪中握著寶石，代表國家的財富。"},
+  {code:"JM",name:"牙買加",fact:"牙買加國旗是全世界唯一不含紅、白、藍三色的國旗。"},
+  {code:"CU",name:"古巴",fact:"古巴國旗的三道藍色條紋代表西班牙殖民時期的三個行政區。"},
+  {code:"CO",name:"哥倫比亞",fact:"哥倫比亞國旗的黃色占一半面積，代表該國豐富的黃金資源。"},
+  {code:"PE",name:"秘魯",fact:"秘魯國旗的紅白二色據傳來自聖馬丁將軍看到飛過的紅鶴群而獲得靈感。"},
+  {code:"CL",name:"智利",fact:"智利國旗被稱為「孤星旗」，紅色代表獨立戰爭的鮮血。"},
+  {code:"KZ",name:"哈薩克",fact:"哈薩克國旗的藍色代表突厥民族的天空崇拜，金色太陽下方是翱翔的草原鷹。"},
+  {code:"MN",name:"蒙古",fact:"蒙古國旗左側的索永布圖案包含火焰、太陽、月亮等傳統象徵。"},
+  {code:"BD",name:"孟加拉",fact:"孟加拉國旗的紅色圓形略偏左，這樣飄揚時視覺上會看起來居中。"},
+  {code:"HR",name:"克羅埃西亞",fact:"克羅埃西亞國旗上的紅白棋盤格紋源自中世紀，是該國最具代表性的符號。"},
+  {code:"RO",name:"羅馬尼亞",fact:"羅馬尼亞國旗和查德國旗幾乎一模一樣，唯一差異是藍色深淺略有不同。"},
+  {code:"HU",name:"匈牙利",fact:"匈牙利三色旗在 1848 年革命中成為自由的象徵。"},
+];
+
+const CDN='https://flagcdn.com/w320/';
+let timer,timeLeft,score,wrong,qNum,curQ,answered;
+
+function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function fmt(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
+
+function updateHUD(){
+  document.getElementById('hTime').textContent=fmt(timeLeft);
+  document.getElementById('hScore').textContent=score;
+  document.getElementById('hQ').textContent=qNum;
+  document.getElementById('progBar').style.width=(timeLeft/120*100)+'%';
+  const p=document.getElementById('pillTime');
+  if(timeLeft<=20)p.classList.add('danger');else p.classList.remove('danger');
+}
+
+function pick(){
+  const pool=shuffle(FLAGS);
+  const correct=pool[0];
+  let opts=[correct,...pool.filter(f=>f.code!==correct.code).slice(0,3)];
+  return{correct,options:shuffle(opts)};
+}
+
+function render(){
+  const q=pick();curQ=q;answered=false;qNum++;
+  document.getElementById('flagImg').src=CDN+q.correct.code.toLowerCase()+'.png';
+  document.getElementById('flagImg').alt=q.correct.name+'的國旗';
+  document.getElementById('flagCap').textContent='這隻老鼠叼著一面國旗在台北街頭亂跑，快辨認出來！';
+  document.getElementById('factArea').innerHTML='';
+  const grid=document.getElementById('optGrid');grid.innerHTML='';
+  q.options.forEach(opt=>{
+    const btn=document.createElement('button');
+    btn.className='optBtn';btn.textContent=opt.name;
+    btn.addEventListener('click',()=>handle(btn,opt));
+    grid.appendChild(btn);
+  });
+  updateHUD();
+}
+
+function handle(btn,chosen){
+  if(answered)return;answered=true;
+  document.querySelectorAll('.optBtn').forEach(b=>b.disabled=true);
+  if(chosen.code===curQ.correct.code){
+    btn.classList.add('correct');score++;
+    // rat caught animation
+    const rc=document.createElement('div');rc.className='ratCaught';rc.textContent='🐀✅';
+    btn.appendChild(rc);setTimeout(()=>rc.remove(),600);
+    // big popup
+    const pop=document.createElement('div');pop.className='scorePop';pop.textContent='🐀 抓到！';
+    document.body.appendChild(pop);setTimeout(()=>pop.remove(),700);
+    document.getElementById('flagCap').textContent='🎉 成功抓到老鼠！答對了！';
+  }else{
+    btn.classList.add('wrong');wrong++;
+    document.querySelectorAll('.optBtn').forEach(b=>{if(b.textContent===curQ.correct.name)b.classList.add('reveal');});
+    document.getElementById('flagCap').textContent='💨 老鼠逃跑了！正確答案已標示。';
+  }
+  updateHUD();
+  document.getElementById('factArea').innerHTML=`<div class="factBox"><strong>📖 ${curQ.correct.name}小知識：</strong>${curQ.correct.fact}</div>`;
+  setTimeout(()=>{if(timeLeft>0)render();},1200);
+}
+
+function endGame(){
+  clearInterval(timer);
+  document.getElementById('finalScore').textContent=score+' 隻';
+  document.getElementById('eOK').textContent=score;
+  document.getElementById('eNO').textContent=wrong;
+  document.getElementById('eTot').textContent=score+wrong;
+  let msg,emoji;
+  if(score>=25){msg='你是台北街頭的抓鼠大師！蔣萬安應該頒發獎狀給你。';emoji='🏆';}
+  else if(score>=15){msg='表現不錯！大部分老鼠都被你抓到了，台北街頭乾淨多了。';emoji='🎉';}
+  else if(score>=8){msg='還可以再加油，有些老鼠趁你猶豫時跑掉了。';emoji='💪';}
+  else{msg='老鼠們似乎太狡猾了，多認識國旗再來挑戰吧！';emoji='🐀';}
+  document.getElementById('endSum').textContent=msg;
+  document.getElementById('endEmoji').textContent=emoji;
+  show('scrEnd');
+}
+
+function startGame(){
+  score=0;wrong=0;qNum=0;timeLeft=120;
+  show('scrGame');render();
+  timer=setInterval(()=>{timeLeft--;updateHUD();if(timeLeft<=0){timeLeft=0;updateHUD();endGame();}},1000);
+}
+
+document.getElementById('btnStart').addEventListener('click',startGame);
+document.getElementById('btnAgain').addEventListener('click',startGame);
+</script>
+</body>
+</html>

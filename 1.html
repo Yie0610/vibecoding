@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微積分之塔：無盡闖關</title>
+    <!-- 引入 MathJax -->
+    <script>
+        MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+            startup: { typeset: false }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #1a1a24;
+            --panel-bg: #2d2d3f;
+            --text-color: #e2e8f0;
+            --magic-color: #a855f7;
+            --danger-color: #ef4444;
+            --success-color: #22c55e;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(26, 26, 36, 0.95);
+            z-index: 50;
+            transition: opacity 0.4s;
+        }
+
+        .hidden { opacity: 0; pointer-events: none; }
+
+        h1 {
+            font-size: 3.5rem;
+            color: var(--magic-color);
+            text-shadow: 0 0 20px rgba(168, 85, 247, 0.6);
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+        }
+
+        .desc {
+            font-size: 1.2rem;
+            line-height: 1.8;
+            color: #cbd5e1;
+            text-align: center;
+            background: var(--panel-bg);
+            padding: 25px 40px;
+            border-radius: 12px;
+            border: 1px solid #475569;
+            margin-bottom: 30px;
+            max-width: 500px;
+        }
+
+        .btn {
+            background-color: var(--magic-color);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 5px 15px rgba(168, 85, 247, 0.4);
+        }
+
+        .btn:hover { background-color: #c084fc; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(168, 85, 247, 0.6); }
+
+        /* 遊戲介面 */
+        #game-ui {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* 頂部狀態列 */
+        #status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--panel-bg);
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border: 1px solid #475569;
+            margin-bottom: 20px;
+        }
+
+        .hearts { color: var(--danger-color); letter-spacing: 5px; }
+        .floor-text { color: var(--magic-color); font-size: 1.8rem; }
+        .timer { color: #facc15; }
+
+        /* 怪物與題目區 */
+        #battle-zone {
+            background: linear-gradient(180deg, #1e1e2f 0%, #11111a 100%);
+            border: 2px solid #475569;
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            margin-bottom: 20px;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            min-height: 250px;
+        }
+
+        #monster-emoji {
+            font-size: 6rem;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 0 15px rgba(255,255,255,0.2));
+            transition: transform 0.2s;
+        }
+
+        #question-display {
+            font-size: 3rem;
+            color: white;
+            min-height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 選項區 */
+        #options-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            width: 100%;
+        }
+
+        .opt-btn {
+            background: var(--panel-bg);
+            border: 2px solid #475569;
+            color: white;
+            font-size: 1.5rem;
+            padding: 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100px;
+        }
+
+        .opt-btn:hover { border-color: var(--magic-color); background: #3b3b54; transform: translateY(-2px); }
+
+        /* 動畫特效 */
+        .slash-anim { animation: slash 0.4s ease-out; }
+        @keyframes slash {
+            0% { transform: scale(1) rotate(0deg); opacity: 1; filter: drop-shadow(0 0 30px var(--success-color)); }
+            50% { transform: scale(0.8) rotate(-15deg); opacity: 0.5; }
+            100% { transform: scale(0) rotate(20deg); opacity: 0; }
+        }
+
+        .shake-anim { animation: shake 0.4s; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); border-color: var(--danger-color); }
+            25% { transform: translateX(-15px); }
+            75% { transform: translateX(15px); }
+        }
+
+        /* 浮動提示文字 */
+        #feedback-text {
+            position: absolute;
+            top: 40%;
+            font-size: 3rem;
+            font-weight: bold;
+            opacity: 0;
+            pointer-events: none;
+            text-shadow: 0 0 10px #000;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- 1. 開始畫面 -->
+    <div id="start-screen" class="screen">
+        <h1>🏰 微積分之塔</h1>
+        <div class="desc">
+            你來到了一座由數學公式構築的高塔。<br>
+            每一層樓都有駐守的微積分魔物。<br><br>
+            ❤️ <b>生命值：</b> 3 次失誤機會<br>
+            ⏳ <b>詠唱時間：</b> 每層樓 45 秒<br>
+            🎯 <b>目標：</b> 盡可能爬到最高層！
+        </div>
+        <button class="btn" onclick="startGame()">進入高塔</button>
+    </div>
+
+    <!-- 2. 遊戲闖關畫面 -->
+    <div id="game-ui" class="hidden">
+        <div id="status-bar">
+            <div class="floor-text">第 <span id="floor-display">1</span> 層</div>
+            <div class="timer">倒數: <span id="time-display">45</span>s</div>
+            <div class="hearts" id="hearts-display">❤️❤️❤️</div>
+        </div>
+
+        <div id="battle-zone">
+            <div id="monster-emoji">👾</div>
+            <div id="question-display">$$Loading...$$</div>
+            <div id="feedback-text"></div>
+        </div>
+
+        <div id="options-grid">
+            <button class="opt-btn" onclick="checkAnswer(0)" id="opt-0"></button>
+            <button class="opt-btn" onclick="checkAnswer(1)" id="opt-1"></button>
+            <button class="opt-btn" onclick="checkAnswer(2)" id="opt-2"></button>
+        </div>
+    </div>
+
+    <!-- 3. 遊戲結束畫面 -->
+    <div id="end-screen" class="screen hidden">
+        <h1 style="color: var(--danger-color); text-shadow: 0 0 20px rgba(239, 68, 68, 0.6);">魔法耗盡...</h1>
+        <p style="font-size: 1.5rem; color: #cbd5e1;">你最終倒在了高塔的</p>
+        <div style="font-size: 6rem; color: var(--magic-color); font-weight: bold; margin: 10px 0;">第 <span id="final-floor">0</span> 層</div>
+        <button class="btn" style="margin-top: 20px;" onclick="startGame()">重新挑戰</button>
+    </div>
+
+    <script>
+        // --- 闖關題庫 (分為三個難度階段) ---
+        const questions = {
+            easy: [ // 1~5層 (基礎極限與簡單微分)
+                { q: "\\lim_{x \\to 2} \\frac{x^2 - 4}{x - 2}", a: "4", w: ["2", "0"] },
+                { q: "\\lim_{x \\to 0} \\frac{\\sin(2x)}{x}", a: "2", w: ["1", "0"] },
+                { q: "\\frac{d}{dx} (e^{3x})", a: "3e^{3x}", w: ["e^{3x}", "3xe^{3x}"] },
+                { q: "\\lim_{x \\to \\infty} \\frac{3x^2 + 5}{x^2 - 1}", a: "3", w: ["\\infty", "5"] },
+                { q: "\\frac{d}{dx} (\\ln x)", a: "\\frac{1}{x}", w: ["x", "e^x"] }
+            ],
+            medium: [ // 6~10層 (連鎖律、隱函數、基礎積分)
+                { q: "\\frac{d}{dx} \\sin^2(x)", a: "2\\sin x \\cos x", w: ["\\cos^2(x)", "2\\sin x"] },
+                { q: "\\int 2x e^{x^2} \\,dx", a: "e^{x^2} + C", w: ["e^{x^2}", "x^2 e^{x^2} + C"] },
+                { q: "\\int_0^1 x^3 \\,dx", a: "\\frac{1}{4}", w: ["1", "\\frac{1}{3}"] },
+                { q: "\\frac{dy}{dx} \\text{ if } y = \\ln(x^2+1)", a: "\\frac{2x}{x^2+1}", w: ["\\frac{1}{x^2+1}", "\\frac{x}{x^2+1}"] },
+                { q: "\\int \\frac{1}{x} \\,dx", a: "\\ln|x| + C", w: ["x^{-2} + C", "\\frac{1}{x^2} + C"] }
+            ],
+            hard: [ // 11層以上 (微積分基本定理、羅必達、分部積分)
+                { q: "\\frac{d}{dx} \\int_1^x \\frac{\\sin t}{t} \\,dt", a: "\\frac{\\sin x}{x}", w: ["\\frac{\\cos x}{x}", "\\sin x"] },
+                { q: "\\lim_{x \\to 0} \\frac{e^x - 1 - x}{x^2}", a: "\\frac{1}{2}", w: ["1", "0"] },
+                { q: "\\int x \\sin x \\,dx", a: "\\sin x - x\\cos x + C", w: ["x\\cos x - \\sin x + C", "-x\\cos x + C"] },
+                { q: "\\frac{d}{dx} \\int_0^{x^2} \\cos(t) \\,dt", a: "2x \\cos(x^2)", w: ["\\cos(x^2)", "2x \\sin(x^2)"] },
+                { q: "\\int_0^{\\pi} \\cos x \\,dx", a: "0", w: ["2", "1"] }
+            ]
+        };
+
+        const monsters = ["👾", "🐉", "👁️", "🧟", "🦇", "🐺", "🦑", "🦂", "👻", "🤖"];
+
+        let floor = 1;
+        let hp = 3;
+        let timeLeft = 45;
+        let timerId;
+        let correctIdx = 0;
+        let isProcessing = false;
+
+        const uiStart = document.getElementById('start-screen');
+        const uiGame = document.getElementById('game-ui');
+        const uiEnd = document.getElementById('end-screen');
+        const elFloor = document.getElementById('floor-display');
+        const elTime = document.getElementById('time-display');
+        const elHearts = document.getElementById('hearts-display');
+        const elMonster = document.getElementById('monster-emoji');
+        const elMath = document.getElementById('question-display');
+        const elFeedback = document.getElementById('feedback-text');
+        const btns = [document.getElementById('opt-0'), document.getElementById('opt-1'), document.getElementById('opt-2')];
+
+        function startGame() {
+            floor = 1;
+            hp = 3;
+            isProcessing = false;
+            
+            uiStart.classList.add('hidden');
+            uiEnd.classList.add('hidden');
+            uiGame.classList.remove('hidden');
+
+            updateStatus();
+            nextFloor();
+        }
+
+        function updateStatus() {
+            elFloor.innerText = floor;
+            elTime.innerText = timeLeft;
+            elHearts.innerText = "❤️".repeat(hp) + "🖤".repeat(3 - hp);
+        }
+
+        function nextFloor() {
+            isProcessing = true;
+            clearInterval(timerId);
+            
+            // 重置怪物狀態
+            elMonster.className = '';
+            elMonster.style.opacity = 1;
+            elMonster.innerText = monsters[(floor - 1) % monsters.length];
+            
+            // 根據樓層決定題庫難度
+            let pool;
+            if (floor <= 5) pool = questions.easy;
+            else if (floor <= 10) pool = questions.medium;
+            else pool = questions.hard;
+
+            const q = pool[Math.floor(Math.random() * pool.length)];
+            let opts = [q.a, q.w[0], q.w[1]];
+            opts.sort(() => Math.random() - 0.5);
+            correctIdx = opts.indexOf(q.a);
+
+            elMath.innerHTML = `$$${q.q}$$`;
+            for(let i=0; i<3; i++) btns[i].innerHTML = `$$${opts[i]}$$`;
+
+            if(window.MathJax) {
+                MathJax.typesetClear();
+                MathJax.typesetPromise([elMath, ...btns]).then(() => {
+                    startTimer();
+                });
+            }
+        }
+
+        function startTimer() {
+            timeLeft = 45;
+            elTime.innerText = timeLeft;
+            isProcessing = false;
+
+            timerId = setInterval(() => {
+                timeLeft--;
+                elTime.innerText = timeLeft;
+                if (timeLeft <= 0) {
+                    handleWrong("時間到！");
+                }
+            }, 1000);
+        }
+
+        function checkAnswer(idx) {
+            if (isProcessing) return;
+            isProcessing = true;
+            clearInterval(timerId);
+
+            if (idx === correctIdx) {
+                // 答對：擊殺怪物動畫，前往下一層
+                showFeedback("Correct!", "var(--success-color)");
+                elMonster.classList.add('slash-anim');
+                
+                setTimeout(() => {
+                    floor++;
+                    updateStatus();
+                    nextFloor();
+                }, 500);
+            } else {
+                // 答錯：扣血，產生新題目
+                handleWrong("詠唱失敗！");
+            }
+        }
+
+        function handleWrong(msg) {
+            isProcessing = true;
+            clearInterval(timerId);
+            hp--;
+            updateStatus();
+            
+            showFeedback(msg, "var(--danger-color)");
+            document.getElementById('battle-zone').classList.add('shake-anim');
+
+            if (hp <= 0) {
+                setTimeout(endGame, 600);
+            } else {
+                // 扣血後，留在原樓層但換一題
+                setTimeout(() => {
+                    document.getElementById('battle-zone').classList.remove('shake-anim');
+                    nextFloor();
+                }, 600);
+            }
+        }
+
+        function showFeedback(text, color) {
+            elFeedback.innerText = text;
+            elFeedback.style.color = color;
+            elFeedback.style.opacity = 1;
+            elFeedback.style.transform = "translateY(0) scale(1)";
+            
+            requestAnimationFrame(() => {
+                elFeedback.style.transition = "all 0.5s ease-out";
+                elFeedback.style.transform = "translateY(-50px) scale(1.2)";
+                setTimeout(() => {
+                    elFeedback.style.opacity = 0;
+                    setTimeout(() => elFeedback.style.transition = "", 100);
+                }, 500);
+            });
+        }
+
+        function endGame() {
+            uiGame.classList.add('hidden');
+            uiEnd.classList.remove('hidden');
+            document.getElementById('final-floor').innerText = floor;
+            document.getElementById('battle-zone').classList.remove('shake-anim');
+        }
+    </script>
+</body>
+</html>
