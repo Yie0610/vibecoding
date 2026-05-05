@@ -6,15 +6,14 @@
     <title>📁 檔案詳細資料清單</title>
 
     <!-- ========================================== -->
-    <!-- 🛠️ 核心設定區塊 (修改密碼與路徑請在這裡設定) -->
+    <!-- 🛠️ 核心設定區塊 -->
     <!-- ========================================== -->
     <script>
         const CONFIG = {
             owner: 'yie0610',
             repo: 'vibe',
-            lockedRootFolder: 'b', // 鎖定的最外層資料夾
             
-            // 👇 您專屬的密碼雜湊值
+            // 👇 您的密碼雜湊值。現在已不需要設定 lockedRootFolder，它會自動偵測！
             passwordHash: '8368ec5f1a153787469953cac4a39bce1c1e9273175a0a39db0810d0c7d0273d' 
         };
     </script>
@@ -122,9 +121,27 @@
 
     <script>
         // ==========================================
+        // 🌍 自動偵測環境與路徑配置
+        // ==========================================
+        
+        // 1. 解析實際存在的資料夾位置 (作為 API 呼叫的起點)
+        let basePath = window.location.pathname.replace(/index\.html$/, '').replace(/\/$/, '');
+        const repoPrefix = `/${CONFIG.repo}`;
+        if (basePath.startsWith(repoPrefix)) basePath = basePath.substring(repoPrefix.length);
+        basePath = basePath.replace(/^\//, ''); // 獲得像 'b' 這樣的純路徑
+        
+        // 2. 解析瀏覽器實際的基礎 URL (作為檔案下載與連結的前綴)
+        let baseUrl = window.location.pathname.replace(/index\.html$/, '');
+        if (!baseUrl.endsWith('/')) baseUrl += '/';
+
+        // 全局變數
+        let allFiles = []; 
+        let currentSort = { column: 'name', isAsc: true };
+
+        // ==========================================
         // 🔐 登入與驗證邏輯
         // ==========================================
-        const SESSION_KEY = `auth_${CONFIG.repo}`;
+        const SESSION_KEY = `auth_${CONFIG.repo}_${basePath}`;
         
         if (sessionStorage.getItem(SESSION_KEY) === 'true') {
             document.getElementById('login-section').style.display = 'none';
@@ -136,31 +153,26 @@
             const pwd = document.getElementById('pwdInput').value;
             const errorMsg = document.getElementById('login-error');
             
-            // 🌟 【隱藏密技】：自動產生 Hash 密碼
+            // 🌟 產生 Hash 的後門
             if (pwd.startsWith('##')) {
                 const newPwd = pwd.substring(2);
                 if (!newPwd) { alert("請輸入想要的新密碼，例如：##5678"); return; }
-                
                 const encoder = new TextEncoder();
                 const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(newPwd));
                 const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-                
                 try {
                     await navigator.clipboard.writeText(hashHex);
-                    alert(`✅ 產生成功！\n\n新密碼【 ${newPwd} 】的加密代碼，已經為您「自動複製」了！\n\n請直接開啟 VS Code 貼到檔案最上方的 CONFIG 區塊，並 Push 上傳即可。`);
+                    alert(`✅ 產生成功！\n\n加密代碼已經自動複製！\n請貼到最上方的 CONFIG 區塊替換。`);
                 } catch(err) {
-                    prompt(`✅ 產生成功！請手動複製以下代碼，並去替換檔案最上方的 CONFIG 區塊：`, hashHex);
+                    prompt(`✅ 產生成功！請手動複製代碼：`, hashHex);
                 }
                 document.getElementById('pwdInput').value = '';
                 return;
             }
 
-            // 一般登入驗證
             const encoder = new TextEncoder();
-            const data = encoder.encode(pwd);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(pwd));
+            const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 
             if (hashHex === CONFIG.passwordHash) {
                 sessionStorage.setItem(SESSION_KEY, 'true');
@@ -173,12 +185,10 @@
         }
 
         // ==========================================
-        // 🚀 主程式邏輯
+        // 🚀 主程式邏輯 (SPA 架構)
         // ==========================================
         function initApp() {
-            let allFiles = []; 
-            let currentSort = { column: '', isAsc: true };
-
+            // 主題切換邏輯
             const themeBtn = document.getElementById('themeToggleBtn');
             if (localStorage.getItem('theme') === 'dark') {
                 document.body.classList.add('dark-mode');
@@ -191,52 +201,31 @@
                 themeBtn.innerHTML = isDark ? '☀️ 亮色模式' : '🌙 暗色模式';
             });
 
-            let currentPath = window.location.pathname.replace(/index\.html$/, '');
-            const repoPrefix = `/${CONFIG.repo}/`;
-            if (currentPath.startsWith(repoPrefix)) currentPath = currentPath.substring(repoPrefix.length);
-            currentPath = currentPath.replace(/^\/+/, '').replace(/\/+$/, '');
+            // 監聽網址 Hash 變化 (不需重新整理網頁即可切換資料夾)
+            window.addEventListener('hashchange', loadCurrentFolder);
             
-            function initBreadcrumbs() {
-                let base = window.location.pathname;
-                if (currentPath !== '') base = base.substring(0, base.lastIndexOf(currentPath));
-                
-                let pathParts = currentPath.split('/').filter(p => p);
-                let lockIndex = -1;
-                if (CONFIG.lockedRootFolder !== '') {
-                    lockIndex = pathParts.indexOf(CONFIG.lockedRootFolder);
-                }
+            // 初始載入
+            loadCurrentFolder();
+        }
 
-                let html = '';
-                let accum = base;
+        function loadCurrentFolder() {
+            // 取得虛擬路徑 (例如 #systems/hw1)
+            const subPath = window.location.hash.replace(/^#\/?/, '');
+            
+            // 重置搜尋與時間開關狀態
+            document.getElementById('searchInput').value = '';
+            document.getElementById('timeToggle').checked = false;
 
-                if (lockIndex !== -1) {
-                    for(let i=0; i<=lockIndex; i++) accum += pathParts[i] + '/';
-                    html = `<a href="${accum}" class="breadcrumb-link">🏠 首頁 (${CONFIG.lockedRootFolder})</a>`;
-                    for(let i = lockIndex + 1; i < pathParts.length; i++) {
-                        accum += pathParts[i] + '/';
-                        if (i === pathParts.length - 1) {
-                            html += `<span class="separator">/</span> <span style="color: var(--text-color); font-weight: bold;">${pathParts[i]}</span>`;
-                        } else {
-                            html += `<span class="separator">/</span> <a href="${accum}" class="breadcrumb-link">${pathParts[i]}</a>`;
-                        }
-                    }
-                } else {
-                    html = `<a href="${base}" class="breadcrumb-link">🏠 首頁</a>`;
-                    pathParts.forEach((p, index) => {
-                        accum += p + '/';
-                        if (index === pathParts.length - 1) {
-                            html += `<span class="separator">/</span> <span style="color: var(--text-color); font-weight: bold;">${p}</span>`;
-                        } else {
-                            html += `<span class="separator">/</span> <a href="${accum}" class="breadcrumb-link">${p}</a>`;
-                        }
-                    });
-                }
-                document.getElementById('breadcrumbs').innerHTML = html;
-            }
-            initBreadcrumbs();
+            // 繪製麵包屑
+            renderBreadcrumbs(subPath);
 
-            const apiPath = currentPath === '' ? '' : `${currentPath}`;
+            // 呼叫 API
+            let apiPath = basePath;
+            if (subPath) apiPath += (apiPath ? '/' : '') + subPath;
             const apiUrl = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${apiPath}`;
+
+            const tbody = document.getElementById('file-list');
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">資料載入中...</td></tr>';
 
             fetch(apiUrl)
                 .then(res => {
@@ -245,7 +234,7 @@
                 })
                 .then(data => {
                     if (!Array.isArray(data)) throw new Error('回傳格式錯誤');
-                    allFiles = data.map(item => {
+                    allFiles = data.filter(item => item.name.toLowerCase() !== 'index.html').map(item => {
                         const isDir = item.type === 'dir';
                         return {
                             ...item,
@@ -257,133 +246,183 @@
                         };
                     });
                     
-                    window.sortTable = function(column) {
-                        if (currentSort.column === column) {
-                            currentSort.isAsc = !currentSort.isAsc;
-                        } else {
-                            currentSort.column = column;
-                            currentSort.isAsc = true;
-                        }
-                        ['name', 'type', 'size', 'time'].forEach(col => {
-                            const iconEl = document.getElementById(`sort-icon-${col}`);
-                            if (col === currentSort.column) {
-                                iconEl.textContent = currentSort.isAsc ? '▲' : '▼';
-                                iconEl.style.color = 'var(--accent-color)'; 
-                            } else {
-                                iconEl.textContent = '';
-                            }
-                        });
-                        allFiles.sort((a, b) => {
-                            let valA, valB;
-                            if (column === 'name') { valA = a.name.toLowerCase(); valB = b.name.toLowerCase(); }
-                            else if (column === 'type') { valA = a.ext; valB = b.ext; }
-                            else if (column === 'size') { valA = a.sizeValue; valB = b.sizeValue; }
-                            else if (column === 'time') { valA = a.timeValue; valB = b.timeValue; }
-                            if (valA < valB) return currentSort.isAsc ? -1 : 1;
-                            if (valA > valB) return currentSort.isAsc ? 1 : -1;
-                            return 0;
-                        });
-                        renderFileList(); 
-                    }
-                    sortTable('name'); 
+                    // 強制觸發一次排序繪製表格
+                    sortTable(currentSort.column, true); 
                 })
                 .catch(error => {
-                    document.getElementById('file-list').innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--error-color); background-color: var(--error-bg); padding: 20px;"><strong>讀取失敗 ❌</strong><br><br>錯誤原因：${error.message}</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--error-color); background-color: var(--error-bg); padding: 20px;"><strong>讀取失敗 ❌</strong><br><br>錯誤原因：${error.message}</td></tr>`;
                 });
+        }
 
-            function getFileIcon(filename, isDir) {
-                if (isDir) return '🗂️';
-                const ext = filename.split('.').pop().toLowerCase();
-                const iconMap = {
-                    'html':'💻', 'css':'💻', 'js':'💻', 'py':'💻', 'cpp':'💻', 'pdf':'📕',
-                    'stl':'🧊', 'gcode':'🧊', 'jpg':'🖼️', 'png':'🖼️', 'zip':'📦', 'rar':'📦',
-                    'md':'📝', 'txt':'📝', 'json':'⚙️', 'mp4':'🎬', 'mp3':'🎵', 'xlsx':'📊', 'docx':'📄'
-                };
-                return iconMap[ext] || '📄';
+        function renderBreadcrumbs(subPath) {
+            let html = `<a href="#/" class="breadcrumb-link">🏠 首頁 (根目錄)</a>`;
+            if (subPath) {
+                let parts = subPath.split('/');
+                let accum = '';
+                parts.forEach((p, index) => {
+                    accum += (accum ? '/' : '') + p;
+                    if (index === parts.length - 1) {
+                        html += `<span class="separator">/</span> <span style="color: var(--text-color); font-weight: bold;">${p}</span>`;
+                    } else {
+                        html += `<span class="separator">/</span> <a href="#${accum}" class="breadcrumb-link">${p}</a>`;
+                    }
+                });
             }
+            document.getElementById('breadcrumbs').innerHTML = html;
+        }
 
-            document.getElementById('searchInput').addEventListener('input', renderFileList);
-
-            function renderFileList() {
-                const tbody = document.getElementById('file-list');
-                tbody.innerHTML = '';
-                
-                const query = document.getElementById('searchInput').value.toLowerCase();
-                const filteredFiles = allFiles.filter(item => item.name.toLowerCase().includes(query));
-
-                if (filteredFiles.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 30px; color: var(--text-muted);">沒有找到符合「${query}」的檔案 🧐</td></tr>`;
-                    return;
+        window.sortTable = function(column, keepDirection = false) {
+            if (!keepDirection) {
+                if (currentSort.column === column) {
+                    currentSort.isAsc = !currentSort.isAsc;
+                } else {
+                    currentSort.column = column;
+                    currentSort.isAsc = true;
                 }
-
-                filteredFiles.forEach(item => {
-                    const isDir = item.type === 'dir';
-                    const sizeStr = isDir ? '-' : (item.size >= 1048576 ? (item.size / 1048576).toFixed(2) + ' MB' : (item.size / 1024).toFixed(2) + ' KB');
-                    const ext = isDir ? '資料夾' : (item.name.includes('.') ? item.name.split('.').pop().toUpperCase() + ' 檔案' : '檔案');
-                    const icon = getFileIcon(item.name, isDir);
-                    
-                    const linkTarget = isDir ? '' : ' target="_blank" rel="noopener noreferrer"';
-                    const downloadBtn = isDir ? '' : `<a href="${item.name}" download class="download-btn" title="下載 ${item.name}">📥</a>`;
-
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>
-                            <div class="file-name-cell">
-                                <a href="${item.name}" class="file-link"${linkTarget}>
-                                    <span class="icon">${icon}</span> ${item.name}
-                                </a>
-                                ${downloadBtn}
-                            </div>
-                        </td>
-                        <td style="color: var(--text-muted);">${ext}</td>
-                        <td style="color: var(--text-muted);">${sizeStr}</td>
-                        <td class="time-cell ${item.timeValue > 0 ? 'time-active' : ''}" id="time-${item.uid}">${item.timeDisplay}</td>
-                    `;
-                    tbody.appendChild(tr);
-                });
             }
 
-            document.getElementById('timeToggle').addEventListener('change', function() {
-                if (this.checked) fetchTimestamps();
+            ['name', 'type', 'size', 'time'].forEach(col => {
+                const iconEl = document.getElementById(`sort-icon-${col}`);
+                if (col === currentSort.column) {
+                    iconEl.textContent = currentSort.isAsc ? '▲' : '▼';
+                    iconEl.style.color = 'var(--accent-color)'; 
+                } else {
+                    iconEl.textContent = '';
+                }
             });
 
-            function fetchTimestamps() {
-                allFiles.forEach(item => {
-                    if (item.timeDisplay !== '--' && item.timeDisplay !== '讀取中...') return; 
-                    item.timeDisplay = '讀取中...';
-                    updateTimeCell(item.uid, item.timeDisplay, false);
-                    
-                    fetch(`https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/commits?path=${item.path}&per_page=1`)
-                        .then(res => {
-                            if (!res.ok) throw new Error('API limit');
-                            return res.json();
-                        })
-                        .then(commits => {
-                            if (commits && commits.length > 0) {
-                                const date = new Date(commits[0].commit.author.date);
-                                item.timeValue = date.getTime(); 
-                                item.timeDisplay = `${date.getFullYear()}/${String(date.getMonth()+1).padStart(2,'0')}/${String(date.getDate()).padStart(2,'0')} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
-                                updateTimeCell(item.uid, item.timeDisplay, true);
-                            } else {
-                                item.timeDisplay = '無紀錄';
-                                updateTimeCell(item.uid, item.timeDisplay, false);
-                            }
-                            if (currentSort.column === 'time') renderFileList();
-                        })
-                        .catch(() => {
-                            item.timeDisplay = '次數達標';
-                            const el = document.getElementById(`time-${item.uid}`);
-                            if(el) { el.textContent = item.timeDisplay; el.style.color = 'var(--error-color)'; }
-                        });
-                });
+            allFiles.sort((a, b) => {
+                let valA, valB;
+                if (column === 'name') { valA = a.name.toLowerCase(); valB = b.name.toLowerCase(); }
+                else if (column === 'type') { valA = a.ext; valB = b.ext; }
+                else if (column === 'size') { valA = a.sizeValue; valB = b.sizeValue; }
+                else if (column === 'time') { valA = a.timeValue; valB = b.timeValue; }
+                if (valA < valB) return currentSort.isAsc ? -1 : 1;
+                if (valA > valB) return currentSort.isAsc ? 1 : -1;
+                return 0;
+            });
+            renderFileList(); 
+        };
+
+        function getFileIcon(filename, isDir) {
+            if (isDir) return '🗂️';
+            const ext = filename.split('.').pop().toLowerCase();
+            const iconMap = {
+                'html':'💻', 'css':'💻', 'js':'💻', 'py':'💻', 'cpp':'💻', 'pdf':'📕',
+                'stl':'🧊', 'gcode':'🧊', 'jpg':'🖼️', 'png':'🖼️', 'zip':'📦', 'rar':'📦',
+                'md':'📝', 'txt':'📝', 'json':'⚙️', 'mp4':'🎬', 'mp3':'🎵', 'xlsx':'📊', 'docx':'📄'
+            };
+            return iconMap[ext] || '📄';
+        }
+
+        document.getElementById('searchInput').addEventListener('input', renderFileList);
+
+        function renderFileList() {
+            const tbody = document.getElementById('file-list');
+            tbody.innerHTML = '';
+            
+            const subPath = window.location.hash.replace(/^#\/?/, '');
+            
+            // 返回上一層按鈕
+            if (subPath) {
+                const parentPath = subPath.includes('/') ? subPath.substring(0, subPath.lastIndexOf('/')) : '';
+                const backTr = document.createElement('tr');
+                backTr.innerHTML = `
+                    <td><a href="#${parentPath}" style="color: #059669; text-decoration: none; font-weight: bold;"><span class="icon">↩️</span> 返回上一層</a></td>
+                    <td style="color: var(--text-muted);">-</td><td style="color: var(--text-muted);">-</td><td class="time-cell">--</td>
+                `;
+                tbody.appendChild(backTr);
             }
 
-            function updateTimeCell(uid, text, isActive) {
-                const el = document.getElementById(`time-${uid}`);
-                if (el) {
-                    el.textContent = text;
-                    if (isActive) el.classList.add('time-active');
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filteredFiles = allFiles.filter(item => item.name.toLowerCase().includes(query));
+
+            if (filteredFiles.length === 0 && allFiles.length > 0) {
+                tbody.innerHTML += `<tr><td colspan="4" style="text-align: center; padding: 30px; color: var(--text-muted);">沒有找到符合「${query}」的檔案 🧐</td></tr>`;
+                return;
+            } else if (allFiles.length === 0) {
+                tbody.innerHTML += `<tr><td colspan="4" style="text-align: center; padding: 30px; color: var(--text-muted);">此資料夾目前沒有檔案。</td></tr>`;
+                return;
+            }
+
+            filteredFiles.forEach(item => {
+                const isDir = item.type === 'dir';
+                const sizeStr = isDir ? '-' : (item.size >= 1048576 ? (item.size / 1048576).toFixed(2) + ' MB' : (item.size / 1024).toFixed(2) + ' KB');
+                const ext = isDir ? '資料夾' : (item.name.includes('.') ? item.name.split('.').pop().toUpperCase() + ' 檔案' : '檔案');
+                const icon = getFileIcon(item.name, isDir);
+                
+                // 動態決定連結 (資料夾用虛擬路由 #，檔案則導向真實下載路徑)
+                let itemUrl = '';
+                if (isDir) {
+                    itemUrl = `#${subPath ? subPath + '/' : ''}${item.name}`;
+                } else {
+                    itemUrl = `${baseUrl}${subPath ? subPath + '/' : ''}${item.name}`;
                 }
+
+                const linkTarget = isDir ? '' : ' target="_blank" rel="noopener noreferrer"';
+                const downloadBtn = isDir ? '' : `<a href="${itemUrl}" download class="download-btn" title="下載 ${item.name}">📥</a>`;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <div class="file-name-cell">
+                            <a href="${itemUrl}" class="file-link"${linkTarget}>
+                                <span class="icon">${icon}</span> ${item.name}
+                            </a>
+                            ${downloadBtn}
+                        </div>
+                    </td>
+                    <td style="color: var(--text-muted);">${ext}</td>
+                    <td style="color: var(--text-muted);">${sizeStr}</td>
+                    <td class="time-cell ${item.timeValue > 0 ? 'time-active' : ''}" id="time-${item.uid}">${item.timeDisplay}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ==========================================
+        // 🕒 時間抓取機制
+        // ==========================================
+        document.getElementById('timeToggle').addEventListener('change', function() {
+            if (this.checked) fetchTimestamps();
+        });
+
+        function fetchTimestamps() {
+            allFiles.forEach(item => {
+                if (item.timeDisplay !== '--' && item.timeDisplay !== '讀取中...') return; 
+                item.timeDisplay = '讀取中...';
+                updateTimeCell(item.uid, item.timeDisplay, false);
+                
+                fetch(`https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/commits?path=${item.path}&per_page=1`)
+                    .then(res => {
+                        if (!res.ok) throw new Error('API limit');
+                        return res.json();
+                    })
+                    .then(commits => {
+                        if (commits && commits.length > 0) {
+                            const date = new Date(commits[0].commit.author.date);
+                            item.timeValue = date.getTime(); 
+                            item.timeDisplay = `${date.getFullYear()}/${String(date.getMonth()+1).padStart(2,'0')}/${String(date.getDate()).padStart(2,'0')} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+                            updateTimeCell(item.uid, item.timeDisplay, true);
+                        } else {
+                            item.timeDisplay = '無紀錄';
+                            updateTimeCell(item.uid, item.timeDisplay, false);
+                        }
+                        if (currentSort.column === 'time') renderFileList();
+                    })
+                    .catch(() => {
+                        item.timeDisplay = '次數達標';
+                        const el = document.getElementById(`time-${item.uid}`);
+                        if(el) { el.textContent = item.timeDisplay; el.style.color = 'var(--error-color)'; }
+                    });
+            });
+        }
+
+        function updateTimeCell(uid, text, isActive) {
+            const el = document.getElementById(`time-${uid}`);
+            if (el) {
+                el.textContent = text;
+                if (isActive) el.classList.add('time-active');
             }
         }
     </script>
